@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AnySurat, FolderArsip, TipeSurat, KategoriSurat, SifatSurat } from '../types';
+import { AnySurat, FolderArsip, TipeSurat, KategoriSurat, SifatSurat, User } from '../types';
 import { FolderIcon, PlusIcon, SearchIcon, PaperClipIcon } from './icons';
 import Modal from './Modal';
 import FileViewerModal from './FileViewerModal';
@@ -22,6 +22,7 @@ interface ArsipProps {
     suratList: AnySurat[];
     folders: FolderArsip[];
     kategoriList: KategoriSurat[];
+    currentUser: User;
     onCreateFolder: (nama: string) => void;
 }
 
@@ -67,7 +68,7 @@ const getSifatBadge = (sifat: SifatSurat) => {
     return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colorMap[sifat]}`}>{sifat}</span>;
 }
 
-const Arsip: React.FC<ArsipProps> = ({ suratList, folders, kategoriList, onCreateFolder }) => {
+const Arsip: React.FC<ArsipProps> = ({ suratList, folders, kategoriList, currentUser, onCreateFolder }) => {
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>('folder-3'); // Default to 'Dokumen Proyek'
     const [isModalOpen, setModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -202,6 +203,7 @@ const Arsip: React.FC<ArsipProps> = ({ suratList, folders, kategoriList, onCreat
                     isOpen={isViewerOpen}
                     onClose={() => setViewerOpen(false)}
                     surat={selectedSuratForView}
+                    currentUser={currentUser}
                 />
             )}
         </div>

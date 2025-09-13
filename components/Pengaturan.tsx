@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheckIcon, BellIcon, UsersIcon, ClipboardListIcon, CogIcon } from './icons';
-import { User, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings } from '../types';
+import { User, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, Delegasi } from '../types';
 import PengaturanKopSurat from './PengaturanKopSurat';
 import PengaturanPenomoran from './PengaturanPenomoran';
 import PengaturanBranding from './PengaturanBranding';
@@ -39,12 +39,14 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabl
     </div>
 );
 
-type ActiveTab = 'preferensi' | 'akun' | 'kopSurat' | 'sistem' | 'penomoran' | 'branding';
+type ActiveTab = 'preferensi' | 'akun' | 'delegasi' | 'kopSurat' | 'sistem' | 'penomoran' | 'branding';
 
 const Pengaturan: React.FC<{
     settings: AppSettings;
     onSettingsChange: (newSettings: AppSettings) => void;
     currentUser: User;
+    allUsers: User[];
+    onSetDelegasi: (kepadaUserId: string, tanggalMulai: string, tanggalSelesai: string) => void;
     kopSuratSettings: KopSuratSettings;
     onUpdateKopSurat: (settings: KopSuratSettings) => void;
     penomoranSettings: PenomoranSettings;
@@ -52,8 +54,11 @@ const Pengaturan: React.FC<{
     brandingSettings: BrandingSettings;
     onUpdateBranding: (settings: BrandingSettings) => void;
 }> = (props) => {
-    const { settings, onSettingsChange, currentUser, kopSuratSettings, onUpdateKopSurat, penomoranSettings, onUpdatePenomoran, brandingSettings, onUpdateBranding } = props;
+    const { settings, onSettingsChange, currentUser, allUsers, onSetDelegasi, kopSuratSettings, onUpdateKopSurat, penomoranSettings, onUpdatePenomoran, brandingSettings, onUpdateBranding } = props;
     const [activeTab, setActiveTab] = useState<ActiveTab>('preferensi');
+    const [delegasiKepada, setDelegasiKepada] = useState('');
+    const [delegasiMulai, setDelegasiMulai] = useState('');
+    const [delegasiSelesai, setDelegasiSelesai] = useState('');
     
     const handleSettingsChange = (key: keyof AppSettings, value: any) => {
         onSettingsChange({
@@ -61,6 +66,14 @@ const Pengaturan: React.FC<{
             [key]: value
         });
     };
+
+    const handleDelegasiSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(delegasiKepada && delegasiMulai && delegasiSelesai) {
+            onSetDelegasi(delegasiKepada, delegasiMulai, delegasiSelesai);
+            alert('Delegasi berhasil diatur!');
+        }
+    }
 
     const renderContent = () => {
         switch (activeTab) {
@@ -117,6 +130,42 @@ const Pengaturan: React.FC<{
                         </div>
                     </SettingsCard>
                 );
+             case 'delegasi':
+                return (
+                    <SettingsCard icon={<UsersIcon className="w-6 h-6 text-sky-700" />} title="Delegasi Wewenang">
+                        {currentUser.delegasi && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                                <p><span className="font-semibold">Status Delegasi Saat Ini:</span> Aktif</p>
+                                <p>Wewenang Anda didelegasikan kepada <span className="font-semibold">{currentUser.delegasi.kepadaUser.nama}</span> hingga tanggal {new Date(currentUser.delegasi.tanggalSelesai).toLocaleDateString()}.</p>
+                                <button className="text-red-600 text-xs mt-1 hover:underline">Batalkan Delegasi</button>
+                            </div>
+                        )}
+                        <form onSubmit={handleDelegasiSubmit} className="space-y-4 pt-2">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">Delegasikan Kepada</label>
+                                <select value={delegasiKepada} onChange={e => setDelegasiKepada(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    <option value="">Pilih Pengguna...</option>
+                                    {allUsers.filter(u => u.id !== currentUser.id && u.unitKerjaId === currentUser.unitKerjaId).map(u => (
+                                        <option key={u.id} value={u.id}>{u.nama} ({u.jabatan})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">Tanggal Mulai</label>
+                                    <input type="date" value={delegasiMulai} onChange={e => setDelegasiMulai(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">Tanggal Selesai</label>
+                                    <input type="date" value={delegasiSelesai} onChange={e => setDelegasiSelesai(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800">Atur Delegasi</button>
+                            </div>
+                        </form>
+                    </SettingsCard>
+                )
             case 'kopSurat':
                 return <PengaturanKopSurat settings={kopSuratSettings} onSave={onUpdateKopSurat} />;
             case 'penomoran':
@@ -189,6 +238,7 @@ const Pengaturan: React.FC<{
                 <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                     <TabButton tabId="preferensi" label="Preferensi" />
                     <TabButton tabId="akun" label="Akun" />
+                    <TabButton tabId="delegasi" label="Delegasi Wewenang" />
                     <TabButton tabId="kopSurat" label="Kop Surat" />
                     <TabButton tabId="penomoran" label="Penomoran" />
                     <TabButton tabId="branding" label="Branding & Logo" />

@@ -1,15 +1,17 @@
 
 import React from 'react';
-import { AnySurat, KopSuratSettings, UnitKerja, TipeSurat, SuratKeluar } from '../types';
+import { AnySurat, KopSuratSettings, UnitKerja, TipeSurat, SuratKeluar, User } from '../types';
 
 interface SuratPrintViewProps {
   surat: AnySurat;
   kopSuratSettings: KopSuratSettings;
   unitKerjaList: UnitKerja[];
+  currentUser: User;
 }
 
-const SuratPrintView: React.FC<SuratPrintViewProps> = ({ surat, kopSuratSettings, unitKerjaList }) => {
+const SuratPrintView: React.FC<SuratPrintViewProps> = ({ surat, kopSuratSettings, unitKerjaList, currentUser }) => {
     const suratUnitKerja = unitKerjaList.find(uk => uk.id === surat.unitKerjaId);
+    const watermarkText = `DOKUMEN INI DICETAK OLEH ${currentUser.nama.toUpperCase()} PADA ${new Date().toLocaleString('id-ID')}`;
 
     const renderKopSurat = () => {
         if (!suratUnitKerja) {
@@ -64,44 +66,62 @@ const SuratPrintView: React.FC<SuratPrintViewProps> = ({ surat, kopSuratSettings
         )
     }
 
+    const renderIsiSurat = () => {
+        if(surat.tipe === TipeSurat.KELUAR) {
+            // Treat ringkasan as HTML content for rich text
+            return <div className="space-y-4" dangerouslySetInnerHTML={{ __html: surat.ringkasan.replace(/\n/g, '<br />') }} />;
+        }
+        // Fallback for Surat Masuk
+        return (
+             <div className="space-y-4">
+                <p>Dengan hormat,</p>
+                <p>
+                    Sehubungan dengan surat Saudara nomor {surat.nomorSurat} tanggal {new Date(surat.tanggal).toLocaleDateString('id-ID')} perihal {surat.perihal}, dengan ini kami sampaikan bahwa... 
+                    [Ini adalah konten isi surat yang disimulasikan].
+                </p>
+                <p>
+                    Demikian disampaikan, atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.
+                </p>
+            </div>
+        )
+    }
+
+
     return (
-        <div className="bg-white p-12 A4-size" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
-            {renderKopSurat()}
-            <main className="text-base leading-relaxed">
-                <div className="flex justify-between mb-8">
-                    <div>
-                        <p>Nomor: {surat.nomorSurat}</p>
-                        <p>Sifat: {surat.sifat}</p>
-                        <p>Lampiran: -</p>
-                        <p>Perihal: {surat.perihal}</p>
+        <div className="relative bg-white p-12 A4-size" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+            {/* Watermark */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+              <span className="text-7xl text-black opacity-[0.07] font-bold rotate-[-45deg] select-none whitespace-nowrap">
+                  {watermarkText}
+              </span>
+            </div>
+            {/* Content */}
+            <div className="relative z-10">
+                {renderKopSurat()}
+                <main className="text-base leading-relaxed">
+                    <div className="flex justify-between mb-8">
+                        <div>
+                            <p>Nomor: {surat.nomorSurat}</p>
+                            <p>Sifat: {surat.sifat}</p>
+                            <p>Lampiran: {surat.attachments?.length || 0} Berkas</p>
+                            <p>Perihal: {surat.perihal}</p>
+                        </div>
+                        <div>
+                            <p>{suratUnitKerja?.nama}, {new Date(surat.tanggal).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p>{suratUnitKerja?.nama}, {new Date(surat.tanggal).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+
+                    <div className="mb-8">
+                        <p>Kepada Yth.</p>
+                        <p className="font-bold">{surat.tipe === TipeSurat.KELUAR ? surat.tujuan : surat.pengirim}</p>
+                        <p>di Tempat</p>
                     </div>
-                </div>
 
-                <div className="mb-8">
-                    <p>Kepada Yth.</p>
-                    <p className="font-bold">{surat.tipe === TipeSurat.KELUAR ? surat.tujuan : surat.pengirim}</p>
-                    <p>di Tempat</p>
-                </div>
-
-                <div className="space-y-4">
-                    <p>Dengan hormat,</p>
-                    <p>
-                        Sehubungan dengan surat Saudara nomor {surat.nomorSurat} tanggal {new Date(surat.tanggal).toLocaleDateString('id-ID')} perihal {surat.perihal}, dengan ini kami sampaikan bahwa... 
-                        [Ini adalah konten isi surat yang disimulasikan].
-                    </p>
-                    <p>
-                        [Paragraf kedua dari isi surat simulasi. Konten ini akan diganti dengan editor teks kaya di aplikasi nyata.]
-                    </p>
-                    <p>
-                        Demikian disampaikan, atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.
-                    </p>
-                </div>
-                
-                {renderTandaTangan()}
-            </main>
+                    {renderIsiSurat()}
+                    
+                    {renderTandaTangan()}
+                </main>
+            </div>
         </div>
     );
 };

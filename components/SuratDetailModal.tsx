@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { AnySurat, SuratMasuk, SuratKeluar, TipeSurat, KategoriSurat, User, SifatDisposisi, StatusDisposisi, KopSuratSettings, AppSettings, UnitKerja, SignatureMethod, MasalahUtama, KlasifikasiSurat } from '../types';
+import { AnySurat, SuratMasuk, SuratKeluar, TipeSurat, KategoriSurat, User, SifatDisposisi, StatusDisposisi, KopSuratSettings, AppSettings, UnitKerja, SignatureMethod, MasalahUtama, KlasifikasiSurat, ApprovalStep } from '../types';
 import Modal from './Modal';
-import { ArchiveIcon, CheckCircleIcon, ClockIcon, LinkIcon, PencilAltIcon, PlusIcon, PrinterIcon, SparklesIcon } from './icons';
+import { ArchiveIcon, CheckCircleIcon, ClockIcon, LinkIcon, PencilAltIcon, PlusIcon, PrinterIcon, SparklesIcon, PaperClipIcon, UsersIcon, TrashIcon } from './icons';
 import SuratPrintModal from './SuratPrintModal';
 import LembarDisposisiPrintModal from './LembarDisposisiPrintModal';
 // Note: In a real app, you would use a proper signature pad library
@@ -25,7 +25,11 @@ interface SuratDetailModalProps {
   onAddDisposisi: (suratId: string, catatan: string, tujuanId: string, sifat: SifatDisposisi) => void;
   onUpdateDisposisiStatus: (suratId: string, disposisiId: string, status: StatusDisposisi) => void;
   onTambahTandaTangan: (suratId: string, signatureDataUrl?: string) => void;
+  onKirimUntukPersetujuan?: (suratId: string) => void;
+  onPersetujuan?: (suratId: string, stepId: string, decision: 'Disetujui' | 'Ditolak', notes: string) => void;
   onReplyWithAI: (surat: SuratMasuk) => void;
+  // FIX: Add missing onAddKomentar prop
+  onAddKomentar: (suratId: string, teks: string) => void;
 }
 
 const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
@@ -40,6 +44,7 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
     if (!isOpen) return null;
 
     const isSuratMasuk = surat.tipe === TipeSurat.MASUK;
+    const isSuratKeluar = surat.tipe === TipeSurat.KELUAR;
     const kategori = props.kategoriList.find(k => k.id === surat.kategoriId)?.nama || 'N/A';
     
     const handleSign = () => {
@@ -58,48 +63,62 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
     const renderDetailInfo = () => {
         const suratKeluar = surat as SuratKeluar;
         const suratAsli = suratKeluar.suratAsliId ? props.allSurat.find(s => s.id === suratKeluar.suratAsliId) as SuratMasuk : null;
-
-        const masalahUtama = surat.tipe === TipeSurat.KELUAR ? props.masalahUtamaList?.find(m => m.id === surat.masalahUtamaId) : null;
-        const klasifikasi = surat.tipe === TipeSurat.KELUAR ? props.klasifikasiList?.find(k => k.id === surat.klasifikasiId) : null;
+        const masalahUtama = isSuratKeluar ? props.masalahUtamaList?.find(m => m.id === surat.masalahUtamaId) : null;
+        const klasifikasi = isSuratKeluar ? props.klasifikasiList?.find(k => k.id === surat.klasifikasiId) : null;
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                <InfoItem label="Nomor Surat" value={surat.nomorSurat} />
-                <InfoItem label="Kategori" value={kategori} />
-                <InfoItem label="Tanggal Surat" value={new Date(surat.tanggal).toLocaleDateString('id-ID')} />
-                <InfoItem label="Sifat" value={surat.sifat} />
-                <div className="md:col-span-2">
-                    <InfoItem label="Perihal" value={surat.perihal} />
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                    <InfoItem label="Nomor Surat" value={surat.nomorSurat} />
+                    <InfoItem label="Kategori" value={kategori} />
+                    <InfoItem label="Tanggal Surat" value={new Date(surat.tanggal).toLocaleDateString('id-ID')} />
+                    <InfoItem label="Sifat" value={surat.sifat} />
+                    <div className="md:col-span-2">
+                        <InfoItem label="Perihal" value={surat.perihal} />
+                    </div>
+                    {isSuratMasuk ? (
+                        <>
+                            <InfoItem label="Pengirim" value={surat.pengirim} />
+                            <InfoItem label="Tanggal Diterima" value={new Date(surat.tanggalDiterima).toLocaleDateString('id-ID')} />
+                        </>
+                    ) : (
+                        <>
+                            <InfoItem label="Tujuan" value={surat.tujuan} />
+                            <InfoItem label="Pembuat" value={surat.pembuat.nama} />
+                            <InfoItem label="Jenis Surat" value={surat.jenisSuratKeluar} />
+                             <div className="md:col-span-2">
+                                <InfoItem label="Klasifikasi Arsip" value={`${klasifikasi?.kode || ''} - ${klasifikasi?.deskripsi || 'N/A'}`} />
+                            </div>
+                            <div className="md:col-span-2">
+                                <InfoItem label="Isi Surat (Ringkasan)" value={surat.ringkasan} />
+                            </div>
+                            {suratAsli && (
+                                <div className="md:col-span-2 mt-2 p-3 bg-slate-50 border rounded-md">
+                                    <p className="text-xs font-semibold text-slate-600 flex items-center">
+                                        <LinkIcon className="w-4 h-4 mr-2" />
+                                        Surat ini adalah balasan untuk:
+                                    </p>
+                                    <p className="text-sm text-slate-800 pl-6 mt-1">
+                                        <span className="font-medium">{suratAsli.nomorSurat}</span> - {suratAsli.perihal}
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
-                {isSuratMasuk ? (
-                    <>
-                        <InfoItem label="Pengirim" value={surat.pengirim} />
-                        <InfoItem label="Tanggal Diterima" value={new Date(surat.tanggalDiterima).toLocaleDateString('id-ID')} />
-                    </>
-                ) : (
-                    <>
-                        <InfoItem label="Tujuan" value={surat.tujuan} />
-                        <InfoItem label="Pembuat" value={surat.pembuat.nama} />
-                        <InfoItem label="Jenis Surat" value={surat.jenisSuratKeluar} />
-                        <InfoItem label="Masalah Utama" value={`${masalahUtama?.kode || ''} - ${masalahUtama?.deskripsi || 'N/A'}`} />
-                        <div className="md:col-span-2">
-                          <InfoItem label="Klasifikasi Arsip" value={`${klasifikasi?.kode || ''} - ${klasifikasi?.deskripsi || 'N/A'}`} />
+                 {surat.attachments && surat.attachments.length > 0 && (
+                    <div className="border-t pt-4">
+                        <h4 className="font-semibold text-slate-800 text-sm mb-2">Lampiran</h4>
+                        <div className="space-y-2">
+                        {surat.attachments.map(att => (
+                            <a href={att.content} download={att.name} key={att.id} className="flex items-center text-sm p-2 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
+                                <PaperClipIcon className="w-4 h-4 mr-2 flex-shrink-0 text-slate-500"/>
+                                <span className="truncate text-slate-700" title={att.name}>{att.name}</span>
+                                <span className="ml-2 text-slate-500 flex-shrink-0">({(att.size / 1024).toFixed(1)} KB)</span>
+                            </a>
+                        ))}
                         </div>
-                        <div className="md:col-span-2">
-                            <InfoItem label="Isi Surat (Ringkasan)" value={surat.ringkasan} />
-                        </div>
-                        {suratAsli && (
-                             <div className="md:col-span-2 mt-2 p-3 bg-slate-50 border rounded-md">
-                                <p className="text-xs font-semibold text-slate-600 flex items-center">
-                                    <LinkIcon className="w-4 h-4 mr-2" />
-                                    Surat ini adalah balasan untuk:
-                                </p>
-                                <p className="text-sm text-slate-800 pl-6 mt-1">
-                                    <span className="font-medium">{suratAsli.nomorSurat}</span> - {suratAsli.perihal}
-                                </p>
-                             </div>
-                        )}
-                    </>
+                    </div>
                 )}
             </div>
         );
@@ -110,8 +129,13 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
         return <DisposisiSection {...props} />;
     }
 
+    const renderApprovalAndHistory = () => {
+        if (!isSuratKeluar) return null;
+        return <ApprovalAndHistorySection {...props} />;
+    }
+
     const renderTandaTangan = () => {
-        if (isSuratMasuk) return null;
+        if (!isSuratKeluar) return null;
         const s = surat as SuratKeluar;
         const useQR = props.appSettings.signatureMethod === SignatureMethod.QR_CODE;
 
@@ -156,46 +180,67 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
         )
     }
 
+    const renderActionButtons = () => {
+        const buttons = [];
+        
+        if (isSuratKeluar && (surat.status === 'Draf' || surat.status === 'Revisi') && surat.pembuat.id === props.currentUser.id && props.onKirimUntukPersetujuan) {
+            buttons.push(
+                 <button key="kirim" onClick={() => props.onKirimUntukPersetujuan!(surat.id)} className="flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium">
+                    <SparklesIcon className="w-4 h-4 mr-2" /> Kirim untuk Persetujuan
+                </button>
+            );
+        }
+
+        buttons.push(
+            <button key="arsip" onClick={props.onArchive} className="flex items-center bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-md hover:bg-emerald-200 text-sm font-medium">
+                <ArchiveIcon className="w-4 h-4 mr-2" /> Arsipkan
+            </button>,
+             <button key="print" onClick={() => setPrintModalOpen(true)} className="flex items-center bg-slate-100 text-slate-800 px-3 py-1.5 rounded-md hover:bg-slate-200 text-sm font-medium">
+                <PrinterIcon className="w-4 h-4 mr-2" /> Cetak Surat
+            </button>
+        );
+
+        if (isSuratMasuk) {
+             buttons.push(
+                 <button key="print-disposisi" onClick={() => setDisposisiPrintModalOpen(true)} className="flex items-center bg-slate-100 text-slate-800 px-3 py-1.5 rounded-md hover:bg-slate-200 text-sm font-medium">
+                    <PrinterIcon className="w-4 h-4 mr-2" /> Cetak Disposisi
+                </button>,
+                <button key="reply" onClick={() => {
+                    props.onReplyWithAI(surat as SuratMasuk);
+                    onClose();
+                }} className="flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium">
+                    <SparklesIcon className="w-4 h-4 mr-2" /> Balas dengan AI
+                </button>
+            );
+        }
+
+        return <div className="flex justify-end space-x-2">{buttons}</div>;
+    }
+
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Detail Surat" size="2xl">
+        <Modal isOpen={isOpen} onClose={onClose} title="Detail Surat" size="3xl">
             <div className="space-y-6">
-                <div className="flex justify-end space-x-2">
-                    <button onClick={props.onArchive} className="flex items-center bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-md hover:bg-emerald-200 text-sm font-medium">
-                        <ArchiveIcon className="w-4 h-4 mr-2" /> Arsipkan
-                    </button>
-                     <button onClick={() => setPrintModalOpen(true)} className="flex items-center bg-slate-100 text-slate-800 px-3 py-1.5 rounded-md hover:bg-slate-200 text-sm font-medium">
-                        <PrinterIcon className="w-4 h-4 mr-2" /> Cetak Surat
-                    </button>
-                    {isSuratMasuk && (
-                         <button onClick={() => setDisposisiPrintModalOpen(true)} className="flex items-center bg-slate-100 text-slate-800 px-3 py-1.5 rounded-md hover:bg-slate-200 text-sm font-medium">
-                            <PrinterIcon className="w-4 h-4 mr-2" /> Cetak Disposisi
-                        </button>
-                    )}
-                    {isSuratMasuk && (
-                        <button onClick={() => {
-                            props.onReplyWithAI(surat as SuratMasuk);
-                            onClose();
-                        }} className="flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium">
-                            <SparklesIcon className="w-4 h-4 mr-2" /> Balas dengan AI
-                        </button>
-                    )}
-                </div>
+                {renderActionButtons()}
 
                 <div className="border-b border-gray-200">
                     <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                         <TabButton label="Detail Surat" isActive={activeTab === 'detail'} onClick={() => setActiveTab('detail')} />
                         {isSuratMasuk && <TabButton label="Disposisi" isActive={activeTab === 'disposisi'} onClick={() => setActiveTab('disposisi')} />}
-                        {!isSuratMasuk && <TabButton label="Tanda Tangan" isActive={activeTab === 'ttd'} onClick={() => setActiveTab('ttd')} />}
+                        {isSuratKeluar && <TabButton label={`Riwayat & Persetujuan (v${surat.version})`} isActive={activeTab === 'approval'} onClick={() => setActiveTab('approval')} />}
+                        {isSuratKeluar && <TabButton label="Tanda Tangan" isActive={activeTab === 'ttd'} onClick={() => setActiveTab('ttd')} disabled={surat.status !== 'Disetujui'} />}
                     </nav>
                 </div>
                 
                 <div className="pt-2">
                     {activeTab === 'detail' && renderDetailInfo()}
                     {activeTab === 'disposisi' && renderDisposisi()}
+                    {activeTab === 'approval' && renderApprovalAndHistory()}
                     {activeTab === 'ttd' && renderTandaTangan()}
                 </div>
             </div>
-            {isPrintModalOpen && <SuratPrintModal isOpen={isPrintModalOpen} onClose={() => setPrintModalOpen(false)} surat={surat} kopSuratSettings={props.kopSuratSettings} unitKerjaList={props.unitKerjaList} />}
+            {/* FIX: Pass currentUser prop to SuratPrintModal */}
+            {isPrintModalOpen && <SuratPrintModal isOpen={isPrintModalOpen} onClose={() => setPrintModalOpen(false)} surat={surat} kopSuratSettings={props.kopSuratSettings} unitKerjaList={props.unitKerjaList} currentUser={props.currentUser} />}
             {isDisposisiPrintModalOpen && isSuratMasuk && <LembarDisposisiPrintModal isOpen={isDisposisiPrintModalOpen} onClose={() => setDisposisiPrintModalOpen(false)} surat={surat as SuratMasuk} currentUser={props.currentUser} kopSuratSettings={props.kopSuratSettings} unitKerjaList={props.unitKerjaList} />}
         </Modal>
     );
@@ -281,6 +326,109 @@ const DisposisiSection: React.FC<SuratDetailModalProps> = ({ surat, allUsers, cu
     )
 }
 
+const ApprovalAndHistorySection: React.FC<SuratDetailModalProps> = ({ surat, currentUser, onPersetujuan }) => {
+    const s = surat as SuratKeluar;
+    const [notes, setNotes] = useState('');
+
+    const nextApproverStep = s.approvalChain.find(step => step.status === 'Menunggu');
+    const isCurrentUserApprover = nextApproverStep?.approver.id === currentUser.id;
+    
+    const handleDecision = (decision: 'Disetujui' | 'Ditolak') => {
+        if (!onPersetujuan || !nextApproverStep) return;
+        if (decision === 'Ditolak' && !notes.trim()) {
+            alert('Catatan wajib diisi jika menolak persetujuan.');
+            return;
+        }
+        onPersetujuan(s.id, nextApproverStep.id, decision, notes);
+        setNotes('');
+    }
+
+    const getStatusIcon = (status: ApprovalStep['status']) => {
+        switch(status) {
+            case 'Disetujui': return <div className="bg-emerald-500 rounded-full h-8 w-8 flex items-center justify-center ring-4 ring-emerald-100"><CheckCircleIcon className="h-5 w-5 text-white"/></div>;
+            case 'Ditolak': return <div className="bg-red-500 rounded-full h-8 w-8 flex items-center justify-center ring-4 ring-red-100"><TrashIcon className="h-5 w-5 text-white"/></div>;
+            case 'Menunggu': return <div className="bg-sky-500 rounded-full h-8 w-8 flex items-center justify-center ring-4 ring-sky-100"><ClockIcon className="h-5 w-5 text-white"/></div>;
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h4 className="font-semibold text-slate-800 mb-2">Alur Persetujuan</h4>
+                <div className="flow-root">
+                    <ul className="-mb-8">
+                        {s.approvalChain.map((step, stepIdx) => (
+                        <li key={step.id}>
+                            <div className="relative pb-8">
+                            {stepIdx !== s.approvalChain.length - 1 ? (
+                                <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-slate-200" aria-hidden="true" />
+                            ) : null}
+                            <div className="relative flex items-start space-x-3">
+                                {getStatusIcon(step.status)}
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-sm">
+                                        <p className="font-semibold text-slate-800">{step.approver.nama}</p>
+                                        <p className="text-slate-500">{step.approver.jabatan}</p>
+                                    </div>
+                                    {step.timestamp && (
+                                        <p className="mt-0.5 text-xs text-slate-400">
+                                            {new Date(step.timestamp).toLocaleString('id-ID')}
+                                        </p>
+                                    )}
+                                    {step.notes && (
+                                         <div className="mt-2 text-sm bg-slate-50 p-2 rounded-md border">
+                                            <p className="text-slate-600">{step.notes}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            </div>
+                        </li>
+                        ))}
+                    </ul>
+                </div>
+
+                {isCurrentUserApprover && s.status === 'Menunggu Persetujuan' && (
+                     <div className="mt-6 border-t pt-4">
+                         <h4 className="font-semibold text-slate-800 mb-2">Tindakan Persetujuan</h4>
+                         <div>
+                            <label htmlFor="approval_notes" className="block text-sm font-medium text-slate-700">Catatan (Wajib jika menolak)</label>
+                            <textarea
+                                id="approval_notes"
+                                rows={3}
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                placeholder="Berikan alasan atau instruksi revisi..."
+                            />
+                        </div>
+                        <div className="mt-2 flex justify-end space-x-2">
+                             <button onClick={() => handleDecision('Ditolak')} className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700">
+                                Tolak & Kembalikan
+                            </button>
+                            <button onClick={() => handleDecision('Disetujui')} className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md shadow-sm hover:bg-emerald-700">
+                                Setujui & Lanjutkan
+                            </button>
+                        </div>
+                     </div>
+                )}
+            </div>
+             {s.history.length > 0 && (
+                <div className="border-t pt-4">
+                    <h4 className="font-semibold text-slate-800 mb-2">Riwayat Versi</h4>
+                     <ul className="space-y-1 text-sm list-disc list-inside text-slate-500">
+                        {s.history.map((h, i) => (
+                            <li key={i}>
+                                <span className="font-semibold text-slate-700">Versi {h.version}:</span> Direvisi pada {h.tanggal ? new Date(h.tanggal).toLocaleDateString() : '-'}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    )
+}
+
 const InfoItem: React.FC<{ label: string; value: string }> = ({ label, value }) => (
     <div>
         <p className="font-semibold text-slate-800">{label}</p>
@@ -288,10 +436,11 @@ const InfoItem: React.FC<{ label: string; value: string }> = ({ label, value }) 
     </div>
 );
 
-const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void }> = ({ label, isActive, onClick }) => (
+const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void, disabled?: boolean }> = ({ label, isActive, onClick, disabled }) => (
     <button
         onClick={onClick}
-        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${isActive ? 'border-slate-700 text-slate-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+        disabled={disabled}
+        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${isActive ? 'border-slate-700 text-slate-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} disabled:text-gray-300 disabled:hover:border-transparent disabled:cursor-not-allowed`}
     >
         {label}
     </button>

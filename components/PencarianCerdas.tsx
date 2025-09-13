@@ -24,6 +24,7 @@ const PencarianCerdas: React.FC<PencarianCerdasProps> = ({ allSurat, kategoriLis
     const [results, setResults] = useState<AnySurat[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
+    const [searchInContent, setSearchInContent] = useState(true);
 
     const handleSearch = async () => {
         if (!query.trim()) return;
@@ -36,16 +37,20 @@ const PencarianCerdas: React.FC<PencarianCerdasProps> = ({ allSurat, kategoriLis
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Prepare a simplified dataset for the AI model
-            const suratDataset = allSurat.map(s => ({
-                id: s.id,
-                type: s.tipe,
-                subject: s.perihal,
-                // Add more relevant fields for better matching
-                summary: s.tipe === TipeSurat.KELUAR ? s.ringkasan : (s.isiRingkasAI || ''),
-                from: s.tipe === TipeSurat.MASUK ? s.pengirim : s.pembuat.nama,
-                to: s.tipe === TipeSurat.KELUAR ? s.tujuan : 'Internal',
-            }));
+            const suratDataset = allSurat.map(s => {
+                const baseData: any = {
+                    id: s.id,
+                    type: s.tipe,
+                    subject: s.perihal,
+                    from: s.tipe === TipeSurat.MASUK ? s.pengirim : s.pembuat.nama,
+                    to: s.tipe === TipeSurat.KELUAR ? s.tujuan : 'Internal',
+                };
+                // If searchInContent is true, include the summary/content for the AI to analyze
+                if (searchInContent) {
+                    baseData.content = s.tipe === TipeSurat.KELUAR ? s.ringkasan : (s.isiRingkasAI || '');
+                }
+                return baseData;
+            });
 
             const schema = {
                 type: Type.OBJECT,
@@ -58,10 +63,14 @@ const PencarianCerdas: React.FC<PencarianCerdasProps> = ({ allSurat, kategoriLis
                 },
                 required: ['relevant_ids']
             };
+            
+            const searchContext = searchInContent 
+                ? "Search the following JSON dataset of letters, paying close attention to the 'content' field as well as the metadata, and return the IDs of the most relevant ones."
+                : "Search the following JSON dataset of letters based on metadata (subject, from, to) and return the IDs of the most relevant ones.";
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: `User query: "${query}". Search the following JSON dataset of letters and return the IDs of the most relevant ones. Match based on semantic meaning, not just keywords. Dataset: ${JSON.stringify(suratDataset)}`,
+                contents: `${searchContext} Match based on semantic meaning, not just keywords. User query: "${query}". Dataset: ${JSON.stringify(suratDataset)}`,
                 config: {
                     responseMimeType: 'application/json',
                     responseSchema: schema,
@@ -105,6 +114,18 @@ const PencarianCerdas: React.FC<PencarianCerdasProps> = ({ allSurat, kategoriLis
                     <button onClick={handleSearch} disabled={isLoading} className="bg-slate-700 text-white px-6 py-2.5 rounded-lg hover:bg-slate-800 transition-colors shadow disabled:opacity-50 disabled:cursor-wait">
                         {isLoading ? 'Mencari...' : 'Cari'}
                     </button>
+                </div>
+                 <div className="mt-4 flex items-center">
+                    <input
+                        id="search-content"
+                        type="checkbox"
+                        checked={searchInContent}
+                        onChange={e => setSearchInContent(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-slate-600 focus:ring-slate-500"
+                    />
+                    <label htmlFor="search-content" className="ml-2 block text-sm text-gray-900">
+                        Cari di dalam isi dokumen (Simulasi OCR)
+                    </label>
                 </div>
             </div>
 

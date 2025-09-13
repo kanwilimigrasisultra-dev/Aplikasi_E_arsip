@@ -4,14 +4,14 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
     mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockSuratMasuk, mockSuratKeluar, mockFolders, mockNotifikasi, mockActivityLogs,
-    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi
+    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates
 } from './mock-data';
 
 // --- TYPE IMPORTS ---
 import {
     User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
     SuratMasuk, SuratKeluar, AnySurat, FolderArsip, Notifikasi, ActivityLog,
-    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings, KebijakanRetensi
+    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings, KebijakanRetensi, Attachment, ApprovalStep, TemplateSurat, Delegasi, Komentar
 } from './types';
 
 // --- COMPONENT IMPORTS ---
@@ -39,6 +39,7 @@ function App() {
     const [allSurat, setAllSurat] = useState<AnySurat[]>([...mockSuratMasuk, ...mockSuratKeluar]);
     const [allFolders, setAllFolders] = useState<FolderArsip[]>(mockFolders);
     const [allKategori, setAllKategori] = useState<KategoriSurat[]>(mockKategori);
+    const [allTemplates, setAllTemplates] = useState<TemplateSurat[]>(mockTemplates);
     const [allUnitKerja, setAllUnitKerja] = useState<UnitKerja[]>(mockUnitKerja);
     const [allMasalahUtama, setAllMasalahUtama] = useState<MasalahUtama[]>(mockMasalahUtama);
     const [allKlasifikasi, setAllKlasifikasi] = useState<KlasifikasiSurat[]>(mockKlasifikasi);
@@ -71,6 +72,18 @@ function App() {
         setActivityLogs(prev => [newLog, ...prev]);
     }, [currentUser]);
     
+    const createNotification = useCallback((suratId: string, pesan: string, forUser?: User) => {
+        const newNotif: Notifikasi = {
+            id: `notif-${Date.now()}`,
+            suratId,
+            pesan,
+            tanggal: new Date().toISOString(),
+            isRead: false,
+        };
+        // In a real app, this would be targeted to `forUser`
+        setNotifications(prev => [newNotif, ...prev]);
+    }, []);
+
     // --- HANDLER FUNCTIONS ---
     const handleLogin = useCallback((email: string) => {
         const user = allUsers.find(u => u.email === email);
@@ -84,40 +97,65 @@ function App() {
 
     const handleLogout = useCallback(() => setCurrentUser(null), []);
     
-    const handleSuratSubmit = useCallback((suratData: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>) => {
+    const handleSuratSubmit = useCallback((suratData: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'komentar'>) => {
         const commonData = {
             id: `${suratData.tipe === TipeSurat.MASUK ? 'sm' : 'sk'}-${Date.now()}`,
             isArchived: false,
             fileUrl: '#',
             unitKerjaId: currentUser!.unitKerjaId,
+            komentar: [],
         };
 
         let newSurat: AnySurat;
 
         if (suratData.tipe === TipeSurat.MASUK) {
-            const typedSuratData = suratData as Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>;
+            const typedSuratData = suratData as Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar'>;
             newSurat = {
                 ...typedSuratData,
                 ...commonData,
                 disposisi: [],
             };
         } else { 
-            const typedSuratData = suratData as Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>;
+            const typedSuratData = suratData as Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'>;
+            
+            const manajerialUser = allUsers.find(u => u.role === UserRole.MANAJERIAL && u.unitKerjaId === currentUser!.unitKerjaId);
+            const pimpinanUser = allUsers.find(u => u.role === UserRole.PIMPINAN && u.unitKerjaId === currentUser!.unitKerjaId);
+            
+            const approvalChain: ApprovalStep[] = [];
+            if (manajerialUser) approvalChain.push({ id: `app-step-${Date.now()}-1`, approver: manajerialUser, status: 'Menunggu', order: 1 });
+            if (pimpinanUser) approvalChain.push({ id: `app-step-${Date.now()}-2`, approver: pimpinanUser, status: 'Menunggu', order: 2 });
+
             newSurat = {
                 ...typedSuratData,
                 ...commonData,
                 status: 'Draf',
+                version: 1,
+                history: [],
+                approvalChain,
             };
         }
 
         setAllSurat(prev => [newSurat, ...prev]);
         logAction(`Menambahkan surat ${newSurat.tipe === TipeSurat.MASUK ? 'masuk' : 'keluar'} baru dengan perihal "${newSurat.perihal}"`);
-    }, [currentUser, logAction]);
+    }, [currentUser, logAction, allUsers]);
 
     const handleSuratUpdate = useCallback((updatedSurat: AnySurat) => {
+        const oldSurat = allSurat.find(s => s.id === updatedSurat.id);
+        if (oldSurat && oldSurat.tipe === TipeSurat.KELUAR && updatedSurat.tipe === TipeSurat.KELUAR && oldSurat.status === 'Revisi') {
+            const snapshot = { ...oldSurat };
+            delete snapshot.history;
+
+            updatedSurat.history = [...oldSurat.history, snapshot];
+            updatedSurat.version = oldSurat.version + 1;
+            updatedSurat.status = 'Draf';
+            updatedSurat.approvalChain = oldSurat.approvalChain.map(step => ({...step, status: 'Menunggu', notes: undefined, timestamp: undefined}));
+            logAction(`Membuat revisi v${updatedSurat.version} untuk surat "${updatedSurat.nomorSurat}"`);
+        } else {
+             logAction(`Memperbarui surat dengan nomor "${updatedSurat.nomorSurat}"`);
+        }
+        
         setAllSurat(prev => prev.map(s => s.id === updatedSurat.id ? updatedSurat : s));
-        logAction(`Memperbarui surat dengan nomor "${updatedSurat.nomorSurat}"`);
-    }, [logAction]);
+    }, [allSurat, logAction]);
 
     const handleSuratArchive = useCallback((suratId: string, folderId: string) => {
         setAllSurat(prev => prev.map(s => s.id === suratId ? { ...s, isArchived: true, folderId } : s));
@@ -167,13 +205,71 @@ function App() {
 
     const handleTambahTandaTangan = useCallback((suratId: string, signatureDataUrl?: string) => {
         setAllSurat(prev => prev.map(s => {
-            if (s.id === suratId && s.tipe === TipeSurat.KELUAR) {
+            if (s.id === suratId && s.tipe === TipeSurat.KELUAR && s.status === 'Disetujui') {
                 return { ...s, tandaTangan: signatureDataUrl || 'SIGNED_WITH_QR', status: 'Terkirim' };
             }
             return s;
         }));
         logAction(`Menambahkan tanda tangan pada surat ${suratId}`);
-    }, [logAction]);
+        createNotification(suratId, `Surat "${allSurat.find(s => s.id === suratId)?.perihal}" telah ditandatangani dan dikirim.`);
+    }, [logAction, allSurat, createNotification]);
+    
+    const handleKirimUntukPersetujuan = useCallback((suratId: string) => {
+        setAllSurat(prev => prev.map(s => {
+            if (s.id === suratId && s.tipe === TipeSurat.KELUAR) {
+                const firstApprover = s.approvalChain.find(step => step.order === 1);
+                if (firstApprover) {
+                    createNotification(suratId, `Surat "${s.perihal}" memerlukan persetujuan Anda.`, firstApprover.approver);
+                }
+                logAction(`Mengirim surat "${s.perihal}" untuk persetujuan.`);
+                return { ...s, status: 'Menunggu Persetujuan' };
+            }
+            return s;
+        }));
+    }, [logAction, createNotification]);
+    
+    const handlePersetujuan = useCallback((suratId: string, stepId: string, decision: 'Disetujui' | 'Ditolak', notes: string) => {
+        setAllSurat(prev => prev.map(s => {
+            if (s.id === suratId && s.tipe === TipeSurat.KELUAR) {
+                const currentStep = s.approvalChain.find(step => step.id === stepId);
+                // Check for delegation
+                const isDelegated = allUsers.find(u => u.id === currentStep?.approver.id)?.delegasi?.kepadaUser.id === currentUser?.id;
+                if(currentStep?.approver.id !== currentUser?.id && !isDelegated) {
+                    alert("Anda tidak memiliki wewenang untuk menyetujui tahap ini.");
+                    return s;
+                }
+
+                const newApprovalChain = s.approvalChain.map(step => {
+                    if (step.id === stepId) {
+                        return { ...step, status: decision, notes, timestamp: new Date().toISOString() };
+                    }
+                    return step;
+                });
+
+                let newStatus = s.status;
+
+                if (decision === 'Ditolak') {
+                    newStatus = 'Revisi';
+                    createNotification(s.id, `Surat "${s.perihal}" Anda perlu direvisi.`, s.pembuat);
+                    logAction(`Menolak persetujuan surat "${s.perihal}" dengan catatan: ${notes}`);
+                } else { // Disetujui
+                    const nextStep = s.approvalChain.find(step => step.order === (currentStep!.order + 1));
+                    if (nextStep) {
+                        createNotification(s.id, `Surat "${s.perihal}" memerlukan persetujuan Anda.`, nextStep.approver);
+                        logAction(`Menyetujui surat "${s.perihal}" pada tahap ${currentStep?.order}.`);
+                    } else {
+                        newStatus = 'Disetujui';
+                        createNotification(s.id, `Surat "${s.perihal}" Anda telah disetujui sepenuhnya.`, s.pembuat);
+                        logAction(`Memberikan persetujuan final untuk surat "${s.perihal}".`);
+                    }
+                }
+                
+                return { ...s, status: newStatus, approvalChain: newApprovalChain };
+            }
+            return s;
+        }));
+    }, [logAction, createNotification, allUsers, currentUser]);
+
 
     const handleReplyWithAI = useCallback((surat: SuratMasuk) => {
         const initialData = {
@@ -190,6 +286,52 @@ function App() {
         setBrandingSettings(settings);
         logAction('Memperbarui pengaturan branding & logo');
     }, [logAction]);
+
+    const handleTemplateSubmit = useCallback((template: Omit<TemplateSurat, 'id'> | TemplateSurat) => {
+        if ('id' in template) {
+            setAllTemplates(prev => prev.map(t => t.id === template.id ? template : t));
+            logAction(`Memperbarui template: ${template.nama}`);
+        } else {
+            const newTemplate: TemplateSurat = { ...template, id: `tpl-${Date.now()}` };
+            setAllTemplates(prev => [newTemplate, ...prev]);
+            logAction(`Membuat template baru: ${template.nama}`);
+        }
+    }, [logAction]);
+    
+    const handleAddKomentar = useCallback((suratId: string, teks: string) => {
+        if (!currentUser) return;
+        const newKomentar: Komentar = {
+            id: `komentar-${Date.now()}`,
+            user: currentUser,
+            teks,
+            timestamp: new Date().toISOString(),
+        };
+        setAllSurat(prev => prev.map(s => {
+            if (s.id === suratId) {
+                return { ...s, komentar: [...s.komentar, newKomentar] };
+            }
+            return s;
+        }));
+        logAction(`Menambahkan komentar pada surat ${suratId}`);
+    }, [currentUser, logAction]);
+
+    const handleSetDelegasi = useCallback((kepadaUserId: string, tanggalMulai: string, tanggalSelesai: string) => {
+        if (!currentUser) return;
+        const kepadaUser = allUsers.find(u => u.id === kepadaUserId);
+        if (!kepadaUser) return;
+
+        const newDelegasi: Delegasi = {
+            id: `del-${Date.now()}`,
+            dariUser: currentUser,
+            kepadaUser,
+            tanggalMulai,
+            tanggalSelesai,
+            isActive: true, // Logic to check date range should be in the approval handler
+        };
+        
+        setAllUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, delegasi: newDelegasi } : u));
+        logAction(`Mendelegasikan wewenang kepada ${kepadaUser.nama} dari ${tanggalMulai} hingga ${tanggalSelesai}`);
+    }, [currentUser, allUsers, logAction]);
 
     // --- RENDER LOGIC ---
     if (!currentUser) {
@@ -217,6 +359,7 @@ function App() {
                     onAddDisposisi={handleAddDisposisi}
                     onUpdateDisposisiStatus={handleUpdateDisposisiStatus}
                     onReplyWithAI={handleReplyWithAI}
+                    onAddKomentar={handleAddKomentar}
                 />;
             case 'surat-keluar':
                 return <SuratKeluarComponent 
@@ -226,7 +369,9 @@ function App() {
                     klasifikasiList={allKlasifikasi}
                     unitKerjaList={allUnitKerja}
                     currentUser={currentUser}
+                    allUsers={allUsers}
                     allSurat={allSurat}
+                    allTemplates={allTemplates}
                     kopSuratSettings={kopSuratSettings}
                     appSettings={appSettings}
                     penomoranSettings={penomoranSettings}
@@ -235,11 +380,14 @@ function App() {
                     onUpdate={handleSuratUpdate}
                     onArchive={handleSuratArchive}
                     onTambahTandaTangan={handleTambahTandaTangan}
+                    onKirimUntukPersetujuan={handleKirimUntukPersetujuan}
+                    onPersetujuan={handlePersetujuan}
+                    onAddKomentar={handleAddKomentar}
                     initialData={suratKeluarInitialData}
                     clearInitialData={() => setSuratKeluarInitialData(null)}
                 />;
             case 'arsip':
-                return <Arsip suratList={archivedSurat} folders={allFolders} kategoriList={allKategori} onCreateFolder={(nama) => setAllFolders(prev => [...prev, {id: `folder-${Date.now()}`, nama}])}/>;
+                return <Arsip suratList={archivedSurat} folders={allFolders} kategoriList={allKategori} onCreateFolder={(nama) => setAllFolders(prev => [...prev, {id: `folder-${Date.now()}`, nama}])} currentUser={currentUser} />;
             case 'pencarian':
                 return <PencarianCerdas allSurat={allSurat} kategoriList={allKategori} />;
             case 'verifikasi':
@@ -247,9 +395,9 @@ function App() {
             case 'laporan':
                 return <Laporan allSurat={allSurat} allKategori={allKategori} kopSuratSettings={kopSuratSettings} unitKerjaList={allUnitKerja} currentUser={currentUser}/>;
             case 'administrasi':
-                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} kebijakanRetensiList={allKebijakanRetensi} activityLogs={activityLogs} currentUser={currentUser} />;
+                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} kebijakanRetensiList={allKebijakanRetensi} templateList={allTemplates} onTemplateSubmit={handleTemplateSubmit} activityLogs={activityLogs} currentUser={currentUser} />;
             case 'pengaturan':
-                return <Pengaturan settings={appSettings} onSettingsChange={setAppSettings} currentUser={currentUser} kopSuratSettings={kopSuratSettings} onUpdateKopSurat={setKopSuratSettings} penomoranSettings={penomoranSettings} onUpdatePenomoran={setPenomoranSettings} brandingSettings={brandingSettings} onUpdateBranding={handleUpdateBranding} />;
+                return <Pengaturan settings={appSettings} onSettingsChange={setAppSettings} currentUser={currentUser} allUsers={allUsers} onSetDelegasi={handleSetDelegasi} kopSuratSettings={kopSuratSettings} onUpdateKopSurat={setKopSuratSettings} penomoranSettings={penomoranSettings} onUpdatePenomoran={setPenomoranSettings} brandingSettings={brandingSettings} onUpdateBranding={handleUpdateBranding} />;
             default:
                 return <div>Page not found</div>;
         }

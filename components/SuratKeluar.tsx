@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk } from '../types';
+import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk, ApprovalStep, TemplateSurat } from '../types';
 import { PlusIcon, SearchIcon, RefreshIcon } from './icons';
 import SuratFormModal from './SuratFormModal';
 import SuratDetailModal from './SuratDetailModal';
@@ -27,15 +27,20 @@ interface SuratKeluarProps {
     klasifikasiList: KlasifikasiSurat[];
     unitKerjaList: UnitKerja[];
     currentUser: User;
+    allUsers: User[];
     allSurat: AnySurat[];
+    allTemplates: TemplateSurat[];
     kopSuratSettings: KopSuratSettings;
     appSettings: AppSettings;
     penomoranSettings: PenomoranSettings;
     folders: FolderArsip[];
-    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>) => void;
+    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'>) => void;
     onUpdate: (surat: AnySurat) => void;
     onArchive: (suratId: string, folderId: string) => void;
     onTambahTandaTangan: (suratId: string, signatureDataUrl?: string) => void;
+    onKirimUntukPersetujuan: (suratId: string) => void;
+    onPersetujuan: (suratId: string, stepId: string, decision: 'Disetujui' | 'Ditolak', notes: string) => void;
+    onAddKomentar: (suratId: string, teks: string) => void;
     initialData?: (Partial<TSuratKeluar> & { suratAsli?: TSuratMasuk }) | null;
     clearInitialData: () => void;
 }
@@ -132,11 +137,11 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
         setUnitKerjaFilter('');
     };
     
-    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status'> | AnySurat) => {
+    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> | AnySurat) => {
         if ('id' in suratData) {
             props.onUpdate(suratData as AnySurat);
         } else {
-            props.onSubmit(suratData as Omit<TSuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>);
+            props.onSubmit(suratData as Omit<TSuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'>);
         }
         handleCloseFormModal();
     };
@@ -151,9 +156,12 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
         return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colorMap[sifat]}`}>{sifat}</span>;
     }
 
-    const getStatusBadge = (status: 'Draf' | 'Terkirim') => {
+    const getStatusBadge = (status: TSuratKeluar['status']) => {
         const colorMap = {
-            'Draf': 'bg-amber-100 text-amber-800',
+            'Draf': 'bg-slate-100 text-slate-800',
+            'Menunggu Persetujuan': 'bg-sky-100 text-sky-800',
+            'Revisi': 'bg-amber-100 text-amber-800',
+            'Disetujui': 'bg-indigo-100 text-indigo-800',
             'Terkirim': 'bg-emerald-100 text-emerald-800',
         };
         return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colorMap[status]}`}>{status}</span>;
@@ -231,7 +239,9 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredSurat.map(surat => (
+                            {filteredSurat.map(surat => {
+                                const canEdit = (surat.status === 'Draf' || surat.status === 'Revisi') && surat.pembuat.id === props.currentUser.id;
+                                return (
                                 <tr key={surat.id} className="bg-white border-b hover:bg-slate-50">
                                     <td className="px-6 py-4 font-medium text-slate-900">{surat.nomorSurat}</td>
                                     <td className="px-6 py-4 max-w-xs truncate">{surat.perihal}</td>
@@ -243,11 +253,12 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                                     </td>
                                     <td className="px-6 py-4 text-center space-x-2">
                                         <button onClick={() => handleOpenDetail(surat)} className="font-medium text-blue-600 hover:text-blue-800">Detail</button>
-                                        <button onClick={() => handleOpenEdit(surat)} className="font-medium text-amber-600 hover:text-amber-800">Edit</button>
+                                        <button onClick={() => handleOpenEdit(surat)} className="font-medium text-amber-600 hover:text-amber-800 disabled:text-slate-400 disabled:cursor-not-allowed" disabled={!canEdit}>Edit</button>
                                         <button onClick={() => handleOpenArchive(surat.id)} className="font-medium text-emerald-600 hover:text-emerald-800">Arsip</button>
                                     </td>
                                 </tr>
-                            ))}
+                                )}
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -264,6 +275,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                 unitKerjaList={props.unitKerjaList}
                 currentUser={props.currentUser}
                 allSurat={props.allSurat}
+                allTemplates={props.allTemplates}
                 penomoranSettings={props.penomoranSettings}
                 suratToEdit={suratToEdit}
                 initialData={props.initialData}
@@ -275,12 +287,15 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                     onClose={() => setDetailModalOpen(false)}
                     surat={selectedSurat}
                     kategoriList={props.kategoriList}
-                    allUsers={[]} // Not needed for Surat Keluar detail
+                    allUsers={props.allUsers} 
                     currentUser={props.currentUser}
                     onArchive={() => handleOpenArchive(selectedSurat.id)}
                     onAddDisposisi={() => {}} // Not applicable
                     onUpdateDisposisiStatus={() => {}} // Not applicable
                     onTambahTandaTangan={props.onTambahTandaTangan}
+                    onKirimUntukPersetujuan={props.onKirimUntukPersetujuan}
+                    onPersetujuan={props.onPersetujuan}
+                    onAddKomentar={props.onAddKomentar}
                     onReplyWithAI={() => {}} // Not applicable here
                     kopSuratSettings={props.kopSuratSettings}
                     appSettings={props.appSettings}

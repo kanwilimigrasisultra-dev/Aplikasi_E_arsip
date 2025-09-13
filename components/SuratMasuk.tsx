@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { SuratMasuk as TSuratMasuk, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, TipeSurat, SifatDisposisi, StatusDisposisi, SuratMasuk as SuratMasukType } from '../types';
+import { SuratMasuk as TSuratMasuk, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, TipeSurat, SifatDisposisi, StatusDisposisi, SuratMasuk as SuratMasukType, Komentar } from '../types';
 import { PlusIcon, SearchIcon, RefreshIcon } from './icons';
 import SuratFormModal from './SuratFormModal';
 import SuratDetailModal from './SuratDetailModal';
@@ -30,12 +30,13 @@ interface SuratMasukProps {
     kopSuratSettings: KopSuratSettings;
     appSettings: AppSettings;
     folders: FolderArsip[];
-    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>) => void;
+    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar'>) => void;
     onUpdate: (surat: AnySurat) => void;
     onArchive: (suratId: string, folderId: string) => void;
     onAddDisposisi: (suratId: string, catatan: string, tujuanId: string, sifat: SifatDisposisi) => void;
     onUpdateDisposisiStatus: (suratId: string, disposisiId: string, status: StatusDisposisi) => void;
     onReplyWithAI: (surat: TSuratMasuk) => void;
+    onAddKomentar: (suratId: string, teks: string) => void;
 }
 
 const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
@@ -114,11 +115,11 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
         setUnitKerjaFilter('');
     };
     
-    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'> | AnySurat) => {
+    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'komentar'> | AnySurat) => {
         if ('id' in suratData) {
             props.onUpdate(suratData as AnySurat);
         } else {
-            props.onSubmit(suratData as Omit<SuratMasukType, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>);
+            props.onSubmit(suratData as Omit<SuratMasukType, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar'>);
         }
         setFormModalOpen(false);
     };
@@ -249,6 +250,7 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
                     onUpdateDisposisiStatus={props.onUpdateDisposisiStatus}
                     onTambahTandaTangan={() => {}} // Not applicable for Surat Masuk
                     onReplyWithAI={props.onReplyWithAI}
+                    onAddKomentar={props.onAddKomentar}
                     kopSuratSettings={props.kopSuratSettings}
                     appSettings={props.appSettings}
                     allSurat={props.allSurat}

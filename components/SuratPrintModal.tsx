@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnySurat, KopSuratSettings, UnitKerja } from '../types';
+import { AnySurat, KopSuratSettings, UnitKerja, User } from '../types';
 import { PrinterIcon } from './icons';
 import SuratPrintView from './SuratPrintView';
 
@@ -9,9 +9,10 @@ interface SuratPrintModalProps {
   surat: AnySurat;
   kopSuratSettings: KopSuratSettings;
   unitKerjaList: UnitKerja[];
+  currentUser: User;
 }
 
-const SuratPrintModal: React.FC<SuratPrintModalProps> = ({ isOpen, onClose, surat, kopSuratSettings, unitKerjaList }) => {
+const SuratPrintModal: React.FC<SuratPrintModalProps> = ({ isOpen, onClose, surat, kopSuratSettings, unitKerjaList, currentUser }) => {
 
     const handlePrint = () => {
         window.print();
@@ -34,7 +35,7 @@ const SuratPrintModal: React.FC<SuratPrintModalProps> = ({ isOpen, onClose, sura
                 </div>
                 <div className="p-2 bg-slate-200 overflow-y-auto flex-1">
                      <div id="surat-printable-area" className="printable-area mx-auto">
-                        <SuratPrintView surat={surat} kopSuratSettings={kopSuratSettings} unitKerjaList={unitKerjaList} />
+                        <SuratPrintView surat={surat} kopSuratSettings={kopSuratSettings} unitKerjaList={unitKerjaList} currentUser={currentUser}/>
                     </div>
                 </div>
             </div>

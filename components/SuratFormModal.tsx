@@ -2,15 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import {
     AnySurat, TipeSurat, SifatSurat, KategoriSurat, UnitKerja, User,
-    SuratMasuk, SuratKeluar, MasalahUtama, KlasifikasiSurat, PenomoranSettings
+    SuratMasuk, SuratKeluar, MasalahUtama, KlasifikasiSurat, PenomoranSettings, Attachment, TemplateSurat
 } from '../types';
 import Modal from './Modal';
-import { PaperClipIcon, SparklesIcon } from './icons';
+import { PaperClipIcon, SparklesIcon, XIcon } from './icons';
 
 interface SuratFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'> | AnySurat) => void;
+    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain'> | AnySurat) => void;
     tipe: TipeSurat;
     kategoriList: KategoriSurat[];
     masalahUtamaList?: MasalahUtama[];
@@ -21,6 +21,8 @@ interface SuratFormModalProps {
     penomoranSettings?: PenomoranSettings;
     suratToEdit?: AnySurat | null;
     initialData?: (Partial<SuratKeluar> & { suratAsli?: SuratMasuk }) | null;
+    // FIX: Add allTemplates to props
+    allTemplates?: TemplateSurat[];
 }
 
 type FormData = Partial<Omit<SuratMasuk, 'tipe'> & Omit<SuratKeluar, 'tipe'>> & { suratAsli?: SuratMasuk };
@@ -36,6 +38,7 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
             perihal: '',
             kategoriId: props.kategoriList[0]?.id || '',
             sifat: SifatSurat.BIASA,
+            attachments: [],
         };
 
         if (tipe === TipeSurat.MASUK) {
@@ -59,6 +62,7 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
     };
     
     const [formData, setFormData] = useState<FormData>(getInitialState());
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [poinBalasan, setPoinBalasan] = useState('');
 
@@ -80,10 +84,13 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                     (editState as Partial<SuratMasuk>).tanggalDiterima = new Date((suratToEdit as SuratMasuk).tanggalDiterima).toISOString().split('T')[0];
                 }
                 setFormData(editState);
+                setAttachments(suratToEdit.attachments || []);
             } else if (initialData) {
                 setFormData({ ...initialState, ...initialData });
+                setAttachments([]);
             } else {
                 setFormData(initialState);
+                setAttachments([]);
             }
             setPoinBalasan('');
         }
@@ -97,6 +104,29 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
         if (name === 'masalahUtamaId') {
             setFormData(prev => ({ ...prev, klasifikasiId: '' }));
         }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const newAttachment: Attachment = {
+                        id: `att-${Date.now()}-${Math.random()}`,
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        content: event.target?.result as string,
+                    };
+                    setAttachments(prev => [...prev, newAttachment]);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    };
+
+    const removeAttachment = (id: string) => {
+        setAttachments(prev => prev.filter(att => att.id !== id));
     };
     
     const handleGenerateNomor = () => {
@@ -231,55 +261,55 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const isEditMode = !!suratToEdit;
-
-        // For update, merge formData into the existing suratToEdit object
-        if (isEditMode) {
+        const fullData = { ...formData, attachments };
+        
+        if (suratToEdit) {
             const updatedSurat: AnySurat = {
                 ...suratToEdit,
-                ...formData,
+                ...fullData,
             };
             onSubmit(updatedSurat);
-            onClose();
-            return;
+        } else {
+             if (tipe === TipeSurat.MASUK) {
+                // FIX: Add 'komentar' to Omit type to match expected type by parent component
+                const newSurat: Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar'> = {
+                    nomorSurat: fullData.nomorSurat || '',
+                    tanggal: fullData.tanggal || '',
+                    perihal: fullData.perihal || '',
+                    kategoriId: fullData.kategoriId || '',
+                    sifat: fullData.sifat || SifatSurat.BIASA,
+                    tipe: TipeSurat.MASUK,
+                    pengirim: fullData.pengirim || '',
+                    tanggalDiterima: fullData.tanggalDiterima || '',
+                    isiRingkasAI: fullData.isiRingkasAI,
+                    attachments: fullData.attachments
+                };
+                onSubmit(newSurat);
+            } else { // KELUAR
+                // FIX: Add 'komentar' to Omit type to match expected type by parent component
+                const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'tandaTangan' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> = {
+                    nomorSurat: fullData.nomorSurat || '',
+                    tanggal: fullData.tanggal || '',
+                    perihal: fullData.perihal || '',
+                    kategoriId: fullData.kategoriId || '',
+                    sifat: fullData.sifat || SifatSurat.BIASA,
+                    tipe: TipeSurat.KELUAR,
+                    tujuan: fullData.tujuan || '',
+                    tujuanUnitKerjaId: fullData.tujuanUnitKerjaId,
+                    pembuat: props.currentUser,
+                    jenisSuratKeluar: fullData.jenisSuratKeluar || 'Biasa',
+                    masalahUtamaId: fullData.masalahUtamaId || '',
+                    klasifikasiId: fullData.klasifikasiId || '',
+                    ringkasan: fullData.ringkasan || '',
+                    suratAsliId: fullData.suratAsliId,
+                    attachments: fullData.attachments
+                };
+                onSubmit(newSurat);
+            }
         }
-
-        // For create, build a new, clean object based on the 'tipe'
-        if (tipe === TipeSurat.MASUK) {
-            const newSurat: Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'> = {
-                nomorSurat: formData.nomorSurat || '',
-                tanggal: formData.tanggal || '',
-                perihal: formData.perihal || '',
-                kategoriId: formData.kategoriId || '',
-                sifat: formData.sifat || SifatSurat.BIASA,
-                tipe: TipeSurat.MASUK,
-                pengirim: formData.pengirim || '',
-                tanggalDiterima: formData.tanggalDiterima || '',
-                isiRingkasAI: formData.isiRingkasAI,
-            };
-            onSubmit(newSurat);
-        } else { // KELUAR
-            const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'tandaTangan' | 'status'> = {
-                nomorSurat: formData.nomorSurat || '',
-                tanggal: formData.tanggal || '',
-                perihal: formData.perihal || '',
-                kategoriId: formData.kategoriId || '',
-                sifat: formData.sifat || SifatSurat.BIASA,
-                tipe: TipeSurat.KELUAR,
-                tujuan: formData.tujuan || '',
-                tujuanUnitKerjaId: formData.tujuanUnitKerjaId,
-                pembuat: props.currentUser,
-                jenisSuratKeluar: formData.jenisSuratKeluar || 'Biasa',
-                masalahUtamaId: formData.masalahUtamaId || '',
-                klasifikasiId: formData.klasifikasiId || '',
-                ringkasan: formData.ringkasan || '',
-                suratAsliId: formData.suratAsliId,
-            };
-            onSubmit(newSurat);
-        }
-
         onClose();
     };
+
 
     const isEditMode = !!suratToEdit;
     const title = `${isEditMode ? 'Edit' : 'Tambah'} Surat ${tipe === TipeSurat.MASUK ? 'Masuk' : 'Keluar'}`;
@@ -412,10 +442,25 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                         <label htmlFor="file-upload" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50">
                             <PaperClipIcon className="w-4 h-4 inline-block mr-2" />
                             <span>Pilih File</span>
-                            <input id="file-upload" name="file-upload" type="file" className="sr-only" />
+                            <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} multiple />
                         </label>
-                        <span className="ml-3 text-sm text-slate-500">(Fitur unggah file disimulasikan)</span>
                     </div>
+                     {attachments.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                            {attachments.map(att => (
+                                <div key={att.id} className="flex items-center justify-between text-sm p-2 bg-slate-100 rounded-md">
+                                    <div className="flex items-center overflow-hidden">
+                                        <PaperClipIcon className="w-4 h-4 mr-2 flex-shrink-0 text-slate-500"/>
+                                        <span className="truncate" title={att.name}>{att.name}</span>
+                                        <span className="ml-2 text-slate-500 flex-shrink-0">({(att.size / 1024).toFixed(1)} KB)</span>
+                                    </div>
+                                    <button type="button" onClick={() => removeAttachment(att.id)} className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0">
+                                        <XIcon className="w-4 h-4"/>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex justify-end pt-4 space-x-2">

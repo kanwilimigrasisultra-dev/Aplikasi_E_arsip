@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, UnitKerja, KategoriSurat, ActivityLog, UserRole, KlasifikasiSurat, MasalahUtama, KebijakanRetensi } from '../types';
+import { User, UnitKerja, KategoriSurat, ActivityLog, UserRole, KlasifikasiSurat, MasalahUtama, KebijakanRetensi, TemplateSurat } from '../types';
 import ManajemenPengguna from './ManajemenPengguna';
 import ManajemenKategori from './ManajemenKategori';
 import ManajemenUnitKerja from './ManajemenUnitKerja';
@@ -7,6 +7,7 @@ import LogAktivitas from './LogAktivitas';
 import ManajemenKlasifikasi from './ManajemenKlasifikasi';
 import ManajemenMasalahUtama from './ManajemenMasalahUtama';
 import ManajemenRetensi from './ManajemenRetensi';
+import ManajemenTemplate from './ManajemenTemplate';
 
 interface AdministrasiProps {
     users: User[];
@@ -15,11 +16,13 @@ interface AdministrasiProps {
     masalahUtamaList: MasalahUtama[];
     klasifikasiList: KlasifikasiSurat[];
     kebijakanRetensiList: KebijakanRetensi[];
+    templateList: TemplateSurat[];
+    onTemplateSubmit: (template: Omit<TemplateSurat, 'id'> | TemplateSurat) => void;
     activityLogs: ActivityLog[];
     currentUser: User;
 }
 
-type AdminTab = 'pengguna' | 'unit' | 'kategori' | 'masalah' | 'klasifikasi' | 'retensi' | 'log';
+type AdminTab = 'pengguna' | 'unit' | 'kategori' | 'masalah' | 'klasifikasi' | 'retensi' | 'template' | 'log';
 
 const Administrasi: React.FC<AdministrasiProps> = (props) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('pengguna');
@@ -104,6 +107,17 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
                         onDelete={(id) => alert(`Delete policy: ${id}`)}
                     />
                 );
+             case 'template':
+                if (!isSuperAdmin) return null;
+                return (
+                    <ManajemenTemplate
+                        templateList={props.templateList}
+                        kategoriList={props.kategoriList}
+                        masalahUtamaList={props.masalahUtamaList}
+                        onSubmit={props.onTemplateSubmit}
+                        onDelete={(id) => alert(`Delete template: ${id}`)}
+                    />
+                );
             case 'log':
                 return <LogAktivitas activityLogs={visibleLogs} />;
             default:
@@ -135,9 +149,10 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
                         <>
                             <TabButton tabId="unit" label="Manajemen Unit Kerja" />
                             <TabButton tabId="kategori" label="Manajemen Kategori" />
-                            <TabButton tabId="masalah" label="Manajemen Masalah Utama" />
-                            <TabButton tabId="klasifikasi" label="Manajemen Klasifikasi" />
-                            <TabButton tabId="retensi" label="Manajemen Retensi" />
+                             <TabButton tabId="template" label="Manajemen Template" />
+                            <TabButton tabId="masalah" label="Masalah Utama" />
+                            <TabButton tabId="klasifikasi" label="Klasifikasi" />
+                            <TabButton tabId="retensi" label="Retensi" />
                         </>
                     )}
                     <TabButton tabId="log" label="Log Aktivitas" />

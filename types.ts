@@ -35,6 +35,38 @@ export enum SignatureMethod {
   QR_CODE = 'qrcode',
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  content: string; // base64 data URL
+}
+
+export interface ApprovalStep {
+  id: string;
+  approver: User;
+  status: 'Menunggu' | 'Disetujui' | 'Ditolak';
+  timestamp?: string;
+  notes?: string;
+  order: number;
+}
+
+export interface Komentar {
+    id: string;
+    user: User;
+    teks: string;
+    timestamp: string;
+}
+
+export interface Delegasi {
+    id: string;
+    dariUser: User;
+    kepadaUser: User;
+    tanggalMulai: string;
+    tanggalSelesai: string;
+    isActive: boolean;
+}
 
 export interface User {
   id: string;
@@ -43,6 +75,7 @@ export interface User {
   jabatan: string;
   role: UserRole;
   unitKerjaId: string;
+  delegasi?: Delegasi;
 }
 
 export interface UnitKerja {
@@ -59,6 +92,17 @@ export interface UnitKerja {
 export interface KategoriSurat {
   id: string;
   nama: string;
+}
+
+export interface TemplateSurat {
+    id: string;
+    nama: string;
+    perihal: string;
+    kategoriId: string;
+    sifat: SifatSurat;
+    jenisSuratKeluar: 'Biasa' | 'SK';
+    masalahUtamaId: string;
+    ringkasan: string; // Can contain basic HTML
 }
 
 export interface MasalahUtama {
@@ -97,6 +141,8 @@ interface SuratBase {
   folderId?: string;
   tipe: TipeSurat;
   unitKerjaId: string; // Unit kerja yang membuat/menerima surat ini
+  attachments?: Attachment[];
+  komentar: Komentar[];
 }
 
 export interface SuratMasuk extends SuratBase {
@@ -115,10 +161,13 @@ export interface SuratKeluar extends SuratBase {
   jenisSuratKeluar: 'Biasa' | 'SK';
   masalahUtamaId: string;
   klasifikasiId: string;
-  ringkasan: string;
+  ringkasan: string; // Can contain basic HTML for rich text editor
   tandaTangan?: string; // base64 data URL for signature image or QR code
   suratAsliId?: string; // ID of the SuratMasuk being replied to
-  status: 'Draf' | 'Terkirim';
+  status: 'Draf' | 'Menunggu Persetujuan' | 'Revisi' | 'Disetujui' | 'Terkirim';
+  version: number;
+  history: Partial<SuratKeluar>[];
+  approvalChain: ApprovalStep[];
 }
 
 export type AnySurat = SuratMasuk | SuratKeluar;
