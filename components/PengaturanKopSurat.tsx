@@ -43,7 +43,7 @@ const PengaturanKopSurat: React.FC<PengaturanKopSuratProps> = ({ settings, onSav
     return (
          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
             <div className="flex items-center mb-4">
-                <ClipboardListIcon className="w-6 h-6 mr-3 text-sky-700" />
+                <ClipboardListIcon className="w-6 h-6 mr-3 text-slate-700" />
                 <h3 className="text-lg font-semibold text-slate-800">Pengaturan Kop Surat Global</h3>
             </div>
             <p className="text-sm text-slate-500 mb-4">Pengaturan ini berlaku untuk semua unit kerja. Detail spesifik seperti alamat dan kontak diatur di menu Administrasi &gt; Manajemen Unit Kerja.</p>
@@ -66,7 +66,7 @@ const PengaturanKopSurat: React.FC<PengaturanKopSuratProps> = ({ settings, onSav
                     <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-slate-700">Lampirkan File Logo</label>
                          <div className="mt-1 flex items-center">
-                            <label htmlFor="logo-upload" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+                            <label htmlFor="logo-upload" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                                 <span>Pilih File</span>
                                 <input id="logo-upload" name="logo-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*" />
                             </label>
@@ -86,11 +86,11 @@ const PengaturanKopSurat: React.FC<PengaturanKopSuratProps> = ({ settings, onSav
                         <div className="md:col-span-2 space-y-3">
                             <div>
                                 <label htmlFor="namaKementerian" className="block text-sm font-medium text-slate-700">Baris 1 (Kementerian)</label>
-                                <input type="text" name="namaKementerian" id="namaKementerian" value={formState.namaKementerian} onChange={handleChange} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                                <input type="text" name="namaKementerian" id="namaKementerian" value={formState.namaKementerian} onChange={handleChange} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                             </div>
                              <div>
                                 <label htmlFor="namaDirektorat" className="block text-sm font-medium text-slate-700">Baris 2 (Direktorat)</label>
-                                <input type="text" name="namaDirektorat" id="namaDirektorat" value={formState.namaDirektorat} onChange={handleChange} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                                <input type="text" name="namaDirektorat" id="namaDirektorat" value={formState.namaDirektorat} onChange={handleChange} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                             </div>
                         </div>
                     </div>
@@ -104,7 +104,7 @@ const PengaturanKopSurat: React.FC<PengaturanKopSuratProps> = ({ settings, onSav
                                 <span>Tersimpan!</span>
                             </div>
                         )}
-                        <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+                        <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                             Simpan Perubahan
                         </button>
                     </div>

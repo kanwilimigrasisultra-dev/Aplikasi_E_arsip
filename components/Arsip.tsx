@@ -45,10 +45,10 @@ const NewFolderModal: React.FC<{
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label htmlFor="folderName" className="block text-sm font-medium text-slate-700">Nama Folder</label>
-                    <input type="text" id="folderName" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                    <input type="text" id="folderName" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                 </div>
                 <div className="flex justify-end pt-4">
-                    <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700">
+                    <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800">
                         Buat Folder
                     </button>
                 </div>
@@ -100,14 +100,14 @@ const Arsip: React.FC<ArsipProps> = ({ suratList, folders, kategoriList, onCreat
                 </div>
                 <div className="flex-1 overflow-y-auto p-2">
                     {folders.map(folder => (
-                        <button key={folder.id} onClick={() => setSelectedFolderId(folder.id)} className={`w-full flex items-center p-3 my-1 rounded-lg text-left transition-colors duration-200 ${selectedFolderId === folder.id ? 'bg-sky-100 text-sky-800 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}>
-                            <FolderIcon className="w-5 h-5 mr-3 text-sky-600" />
+                        <button key={folder.id} onClick={() => setSelectedFolderId(folder.id)} className={`w-full flex items-center p-3 my-1 rounded-lg text-left transition-colors duration-200 ${selectedFolderId === folder.id ? 'bg-slate-200 text-slate-800 font-semibold' : 'text-slate-600 hover:bg-slate-100'}`}>
+                            <FolderIcon className="w-5 h-5 mr-3 text-slate-600" />
                             <span>{folder.nama}</span>
                         </button>
                     ))}
                 </div>
                 <div className="p-4 border-t border-slate-200">
-                    <button onClick={() => setModalOpen(true)} className="w-full flex items-center justify-center bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow">
+                    <button onClick={() => setModalOpen(true)} className="w-full flex items-center justify-center bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors shadow">
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Folder Baru
                     </button>
@@ -126,14 +126,14 @@ const Arsip: React.FC<ArsipProps> = ({ suratList, folders, kategoriList, onCreat
                                 placeholder="Cari perihal, nomor..." 
                                 value={searchTerm} 
                                 onChange={e => setSearchTerm(e.target.value)} 
-                                className="pl-10 pr-4 py-2 w-52 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all" 
+                                className="pl-10 pr-4 py-2 w-52 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all" 
                             />
                         </div>
                         <select
                             aria-label="Filter Kategori"
                             value={kategoriFilter}
                             onChange={(e) => setKategoriFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all text-sm text-slate-600 bg-white"
+                            className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all text-sm text-slate-600 bg-white"
                         >
                             <option value="">Semua Kategori</option>
                             {kategoriList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
@@ -175,7 +175,7 @@ const Arsip: React.FC<ArsipProps> = ({ suratList, folders, kategoriList, onCreat
                                                 <td className="px-6 py-4">{surat.perihal}</td>
                                                 <td className="px-6 py-4">{new Date(surat.tanggal).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <button onClick={() => handleOpenFileView(surat)} className="inline-flex items-center text-sm font-medium text-sky-600 hover:text-sky-800">
+                                                    <button onClick={() => handleOpenFileView(surat)} className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800">
                                                         <PaperClipIcon className="w-4 h-4 mr-1" /> Lihat
                                                     </button>
                                                 </td>

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat } from '../types';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk } from '../types';
 import { PlusIcon, SearchIcon, RefreshIcon } from './icons';
 import SuratFormModal from './SuratFormModal';
 import SuratDetailModal from './SuratDetailModal';
@@ -35,6 +36,8 @@ interface SuratKeluarProps {
     onUpdate: (surat: AnySurat) => void;
     onArchive: (suratId: string, folderId: string) => void;
     onTambahTandaTangan: (suratId: string, signatureDataUrl?: string) => void;
+    initialData?: (Partial<TSuratKeluar> & { suratAsli?: TSuratMasuk }) | null;
+    clearInitialData: () => void;
 }
 
 const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
@@ -54,6 +57,20 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
     const [unitKerjaFilter, setUnitKerjaFilter] = useState('');
 
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
+    
+    useEffect(() => {
+        if (props.initialData) {
+            setSuratToEdit(null); // Ensure we are not in edit mode
+            setFormModalOpen(true);
+        }
+    }, [props.initialData]);
+    
+    const handleCloseFormModal = () => {
+        setFormModalOpen(false);
+        if (props.initialData) {
+            props.clearInitialData();
+        }
+    };
 
     const filteredSurat = useMemo(() => {
         return props.suratList
@@ -115,6 +132,15 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
         setUnitKerjaFilter('');
     };
     
+    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'> | AnySurat) => {
+        if ('id' in suratData) {
+            props.onUpdate(suratData as AnySurat);
+        } else {
+            props.onSubmit(suratData as Omit<TSuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>);
+        }
+        handleCloseFormModal();
+    };
+
     const getSifatBadge = (sifat: SifatSurat) => {
         const colorMap = {
             [SifatSurat.BIASA]: 'bg-slate-100 text-slate-800',
@@ -130,7 +156,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
             <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
                     <h3 className="text-xl font-bold text-slate-800">Daftar Surat Keluar</h3>
-                    <button onClick={() => { setSuratToEdit(null); setFormModalOpen(true); }} className="flex items-center bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition-colors shadow">
+                    <button onClick={() => { setSuratToEdit(null); setFormModalOpen(true); }} className="flex items-center bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow">
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Buat Surat Keluar
                     </button>
@@ -142,42 +168,42 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Cari</label>
                         <div className="relative">
                            <SearchIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                           <input type="text" placeholder="Perihal, nomor, tujuan..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" />
+                           <input type="text" placeholder="Perihal, nomor, tujuan..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500" />
                         </div>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Surat (Mulai)</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" />
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Surat (Akhir)</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" />
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500" />
                     </div>
                      <div className="col-span-1 md:col-span-2 lg:col-span-1">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Sifat</label>
-                        <select value={sifatFilter} onChange={e => setSifatFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white">
+                        <select value={sifatFilter} onChange={e => setSifatFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 bg-white">
                             <option value="">Semua Sifat</option>
-                            {Object.values(SifatSurat).map(s => <option key={s} value={s}>{s}</option>)}
+                            {Object.values(SifatSurat).map(s => <option key={s as string} value={s as string}>{s}</option>)}
                         </select>
                     </div>
                     <div className="col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-1">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Kategori</label>
-                        <select value={kategoriFilter} onChange={e => setKategoriFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white">
+                        <select value={kategoriFilter} onChange={e => setKategoriFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 bg-white">
                             <option value="">Semua Kategori</option>
                             {props.kategoriList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
                         </select>
                     </div>
                      <div className="col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-2">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Unit Kerja Tujuan</label>
-                        <select value={unitKerjaFilter} onChange={e => setUnitKerjaFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white">
+                        <select value={unitKerjaFilter} onChange={e => setUnitKerjaFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 bg-white">
                             <option value="">Semua Unit</option>
                             {props.unitKerjaList.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
                         </select>
                     </div>
                      <div className="col-span-full xl:col-span-1">
-                        <button onClick={handleResetFilters} className="w-full flex items-center justify-center bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow">
+                        <button onClick={handleResetFilters} className="w-full flex items-center justify-center bg-slate-500 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition-colors shadow">
                             <RefreshIcon className="w-5 h-5 mr-2" />
-                            Reset
+                            Atur Ulang
                         </button>
                     </div>
                 </div>
@@ -211,7 +237,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                                         }
                                     </td>
                                     <td className="px-6 py-4 text-center space-x-2">
-                                        <button onClick={() => handleOpenDetail(surat)} className="font-medium text-sky-600 hover:text-sky-800">Detail</button>
+                                        <button onClick={() => handleOpenDetail(surat)} className="font-medium text-blue-600 hover:text-blue-800">Detail</button>
                                         <button onClick={() => handleOpenEdit(surat)} className="font-medium text-amber-600 hover:text-amber-800">Edit</button>
                                         <button onClick={() => handleOpenArchive(surat.id)} className="font-medium text-emerald-600 hover:text-emerald-800">Arsip</button>
                                     </td>
@@ -224,8 +250,8 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
 
             <SuratFormModal
                 isOpen={isFormModalOpen}
-                onClose={() => setFormModalOpen(false)}
-                onSubmit={props.onSubmit}
+                onClose={handleCloseFormModal}
+                onSubmit={handleFormSubmit}
                 tipe={TipeSurat.KELUAR}
                 kategoriList={props.kategoriList}
                 masalahUtamaList={props.masalahUtamaList}
@@ -235,6 +261,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                 allSurat={props.allSurat}
                 penomoranSettings={props.penomoranSettings}
                 suratToEdit={suratToEdit}
+                initialData={props.initialData}
             />
 
             {selectedSurat && (
@@ -249,10 +276,14 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                     onAddDisposisi={() => {}} // Not applicable
                     onUpdateDisposisiStatus={() => {}} // Not applicable
                     onTambahTandaTangan={props.onTambahTandaTangan}
+                    onReplyWithAI={() => {}} // Not applicable here
                     kopSuratSettings={props.kopSuratSettings}
                     appSettings={props.appSettings}
                     allSurat={props.allSurat}
                     unitKerjaList={props.unitKerjaList}
+                    // Pass these lists for displaying classification details
+                    masalahUtamaList={props.masalahUtamaList}
+                    klasifikasiList={props.klasifikasiList}
                 />
             )}
 

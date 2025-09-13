@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { KategoriSurat, SifatSurat, TipeSurat, AnySurat, UnitKerja, User, KlasifikasiSurat, PenomoranSettings, MasalahUtama, JenisSurat } from '../types';
+import { GoogleGenAI, Type } from "@google/genai";
+import {
+    AnySurat, TipeSurat, SifatSurat, KategoriSurat, UnitKerja, User,
+    SuratMasuk, SuratKeluar, MasalahUtama, KlasifikasiSurat, PenomoranSettings
+} from '../types';
 import Modal from './Modal';
 import { PaperClipIcon, SparklesIcon } from './icons';
-import { GoogleGenAI, Type } from "@google/genai";
 
 interface SuratFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'>) => void;
+    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'> | AnySurat) => void;
     tipe: TipeSurat;
     kategoriList: KategoriSurat[];
     masalahUtamaList?: MasalahUtama[];
@@ -17,519 +20,408 @@ interface SuratFormModalProps {
     allSurat?: AnySurat[];
     penomoranSettings?: PenomoranSettings;
     suratToEdit?: AnySurat | null;
-    initialData?: Partial<AnySurat> | null;
+    initialData?: (Partial<SuratKeluar> & { suratAsli?: SuratMasuk }) | null;
 }
 
+type FormData = Partial<Omit<SuratMasuk, 'tipe'> & Omit<SuratKeluar, 'tipe'>> & { suratAsli?: SuratMasuk };
+
+
 const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
-    const { 
-        isOpen, onClose, onSubmit, tipe, kategoriList, masalahUtamaList = [], klasifikasiList = [], unitKerjaList, 
-        currentUser, allSurat = [], penomoranSettings, suratToEdit, initialData 
-    } = props;
+    const { isOpen, onClose, onSubmit, tipe, suratToEdit, initialData } = props;
     
-    const [jenisSurat, setJenisSurat] = useState<JenisSurat>(JenisSurat.BIASA);
-    const [nomorSurat, setNomorSurat] = useState('');
-    const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
-    const [perihal, setPerihal] = useState('');
-    const [isi, setIsi] = useState('');
-    const [tujuanEksternal, setTujuanEksternal] = useState('');
-    const [tujuanInternalId, setTujuanInternalId] = useState('');
-    const [pengirim, setPengirim] = useState('');
-    const [kategoriId, setKategoriId] = useState('');
-    const [masalahUtamaId, setMasalahUtamaId] = useState('');
-    const [klasifikasiId, setKlasifikasiId] = useState('');
-    const [sifat, setSifat] = useState<SifatSurat>(SifatSurat.BIASA);
-    const [fileName, setFileName] = useState('');
-    const [isCategorySuggested, setIsCategorySuggested] = useState(false);
-    const [isAiLoading, setIsAiLoading] = useState(false);
-    const [aiError, setAiError] = useState('');
-    const [isiRingkas, setIsiRingkas] = useState('');
-    
-    const currentUserUnit = useMemo(() => unitKerjaList.find(u => u.id === currentUser.unitKerjaId), [currentUser.unitKerjaId, unitKerjaList]);
-    const canSendInternal = tipe === TipeSurat.KELUAR && currentUserUnit?.tipe === 'Pusat';
-
-    // Auto-numbering logic for Surat Keluar
-    useEffect(() => {
-        if (!isOpen || tipe !== TipeSurat.KELUAR || suratToEdit || !penomoranSettings || !currentUserUnit) {
-            return;
-        }
-
-        const generateNomorSurat = () => {
-            const currentYear = new Date(tanggal).getFullYear();
-            const klasifikasi = klasifikasiList.find(k => k.id === klasifikasiId);
-            const kantorWilayah = currentUserUnit.tipe === 'Pusat' ? currentUserUnit : unitKerjaList.find(u => u.id === currentUserUnit.indukId);
-            
-            if (!kantorWilayah) {
-                setNomorSurat('Error: Unit Induk tidak ditemukan.');
-                return;
-            }
-             if (!klasifikasiId || !masalahUtamaId) {
-                setNomorSurat('Lengkapi Klasifikasi...');
-                return;
-            }
-
-            const kodeUnitLengkap = currentUserUnit.tipe === 'Pusat' 
-                ? currentUserUnit.kode 
-                : `${kantorWilayah.kode}.${currentUserUnit.kode}`;
-
-            if (jenisSurat === JenisSurat.SK) {
-                const allUnitIdsInRegion = unitKerjaList.filter(u => u.id === kantorWilayah.id || u.indukId === kantorWilayah.id).map(u => u.id);
-                
-                const suratSKTerkait = allSurat.filter(s => 
-                    s.tipe === TipeSurat.KELUAR &&
-                    s.jenisSurat === JenisSurat.SK &&
-                    new Date(s.tanggal).getFullYear() === currentYear &&
-                    allUnitIdsInRegion.includes(s.unitKerjaId)
-                );
-                
-                const lastNomorUrut = suratSKTerkait.reduce((max, s) => {
-                    // Regex updated to match format: -123.
-                    const match = s.nomorSurat.match(/-(\d+)\./);
-                    return (match && match[1]) ? Math.max(max, parseInt(match[1], 10)) : max;
-                }, 0);
-
-                const nextNomorUrut = lastNomorUrut + 1;
-                
-                const nomor = penomoranSettings.sk
-                    .replace(/\[KODE_UNIT_LENGKAP\]/g, kodeUnitLengkap)
-                    .replace(/\[KODE_KLASIFIKASI_ARSIP\]/g, klasifikasi?.kode || '?')
-                    .replace(/\[NOMOR_SURAT_OTOMATIS\]/g, nextNomorUrut.toString())
-                    .replace(/\[TAHUN_SAAT_INI\]/g, currentYear.toString());
-                
-                setNomorSurat(nomor);
-
-            } else { // Surat Biasa
-                const suratBiasaTerkait = allSurat.filter(s => 
-                    s.tipe === TipeSurat.KELUAR &&
-                    s.jenisSurat !== JenisSurat.SK &&
-                    new Date(s.tanggal).getFullYear() === currentYear &&
-                    s.unitKerjaId === currentUser.unitKerjaId &&
-                    s.masalahUtamaId === masalahUtamaId
-                );
-
-                const lastNomorUrut = suratBiasaTerkait.reduce((max, s) => {
-                    const match = s.nomorSurat.match(/-(\d+)$/);
-                    return (match && match[1]) ? Math.max(max, parseInt(match[1], 10)) : max;
-                }, 0);
-                
-                const nextNomorUrut = lastNomorUrut + 1;
-                
-                const nomor = penomoranSettings.biasa
-                    .replace('[KODE_UNIT_LENGKAP]', kodeUnitLengkap)
-                    .replace('[KODE_KLASIFIKASI_ARSIP]', klasifikasi?.kode || '?')
-                    .replace('[NOMOR_SURAT_OTOMATIS]', nextNomorUrut.toString());
-
-                setNomorSurat(nomor);
-            }
+    const getInitialState = (): FormData => {
+        const defaults = {
+            nomorSurat: '',
+            tanggal: new Date().toISOString().split('T')[0],
+            perihal: '',
+            kategoriId: props.kategoriList[0]?.id || '',
+            sifat: SifatSurat.BIASA,
         };
 
-        generateNomorSurat();
+        if (tipe === TipeSurat.MASUK) {
+            return {
+                ...defaults,
+                pengirim: '',
+                tanggalDiterima: new Date().toISOString().split('T')[0],
+                isiRingkasAI: '',
+            };
+        } else { // KELUAR
+            return {
+                ...defaults,
+                tujuan: '',
+                jenisSuratKeluar: 'Biasa',
+                masalahUtamaId: props.masalahUtamaList?.[0]?.id || '',
+                klasifikasiId: '',
+                ringkasan: '',
+                suratAsliId: initialData?.suratAsliId,
+            };
+        }
+    };
+    
+    const [formData, setFormData] = useState<FormData>(getInitialState());
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [poinBalasan, setPoinBalasan] = useState('');
 
-    }, [isOpen, tipe, suratToEdit, penomoranSettings, jenisSurat, masalahUtamaId, klasifikasiId, tanggal, allSurat, currentUser.unitKerjaId, unitKerjaList, klasifikasiList, currentUserUnit]);
-
+    const filteredKlasifikasi = useMemo(() => {
+        if (!props.klasifikasiList || !formData.masalahUtamaId) return [];
+        return props.klasifikasiList.filter(k => k.masalahUtamaId === formData.masalahUtamaId);
+    }, [props.klasifikasiList, formData.masalahUtamaId]);
 
     useEffect(() => {
         if (isOpen) {
-             if (suratToEdit) {
-                setNomorSurat(suratToEdit.nomorSurat);
-                setTanggal(suratToEdit.tanggal);
-                setPerihal(suratToEdit.perihal);
-                setIsi(suratToEdit.isi || '');
-                setKategoriId(suratToEdit.kategoriId || '');
-                setMasalahUtamaId(suratToEdit.masalahUtamaId || '');
-                setKlasifikasiId(suratToEdit.klasifikasiId || '');
-                setSifat(suratToEdit.sifat);
-                setJenisSurat(suratToEdit.jenisSurat || JenisSurat.BIASA);
-                if (tipe === TipeSurat.MASUK) {
-                    setPengirim(suratToEdit.pengirim);
-                } else {
-                    setTujuanEksternal(suratToEdit.tujuan);
-                    setTujuanInternalId(suratToEdit.tujuanUnitKerjaId || '');
+            const initialState = getInitialState();
+            if (suratToEdit) {
+                const editState: FormData = {
+                    ...initialState,
+                    ...suratToEdit,
+                    tanggal: new Date(suratToEdit.tanggal).toISOString().split('T')[0],
+                };
+                if (suratToEdit.tipe === TipeSurat.MASUK) {
+                    (editState as Partial<SuratMasuk>).tanggalDiterima = new Date((suratToEdit as SuratMasuk).tanggalDiterima).toISOString().split('T')[0];
                 }
-
+                setFormData(editState);
             } else if (initialData) {
-                setNomorSurat(initialData.nomorSurat || '');
-                setTanggal(initialData.tanggal || new Date().toISOString().split('T')[0]);
-                setPerihal(initialData.perihal || '');
-                setIsi(initialData.isi || '');
-                setKategoriId(initialData.kategoriId || '');
-                setSifat(initialData.sifat || SifatSurat.BIASA);
-                 if (tipe === TipeSurat.MASUK) {
-                    setPengirim(initialData.pengirim || '');
-                } else {
-                    setTujuanEksternal(initialData.tujuan || '');
-                }
-                // Reset other fields
-                setJenisSurat(JenisSurat.BIASA);
-                setMasalahUtamaId('');
-                setTujuanInternalId('');
-                setKlasifikasiId('');
-                setFileName('');
-                setIsiRingkas('');
-                setAiError('');
-                setIsCategorySuggested(false);
-
+                setFormData({ ...initialState, ...initialData });
             } else {
-                // Reset form
-                setNomorSurat(tipe === TipeSurat.KELUAR ? '...' : '');
-                setTanggal(new Date().toISOString().split('T')[0]);
-                setPerihal('');
-                setIsi('');
-                setPengirim('');
-                setTujuanEksternal('');
-                setTujuanInternalId('');
-                setKategoriId('');
-                setMasalahUtamaId('');
-                setKlasifikasiId('');
-                setSifat(SifatSurat.BIASA);
-                setJenisSurat(JenisSurat.BIASA);
-                setFileName('');
-                setIsiRingkas('');
-                setAiError('');
-                setIsCategorySuggested(false);
+                setFormData(initialState);
             }
+            setPoinBalasan('');
         }
-    }, [suratToEdit, initialData, isOpen, tipe]);
-
-    const filteredKlasifikasi = useMemo(() => {
-        if (!masalahUtamaId) return [];
-        return klasifikasiList.filter(k => k.masalahUtamaId === masalahUtamaId);
-    }, [masalahUtamaId, klasifikasiList]);
+    }, [isOpen, suratToEdit, initialData]);
 
 
-    const categoryKeywordMap = useMemo(() => {
-        const map: { [key: string]: string[] } = {};
-        kategoriList.forEach(kategori => {
-            const name = kategori.nama.toLowerCase();
-            if (name.includes('undangan')) map[kategori.id] = ['undang', 'rapat', 'pertemuan', 'meeting'];
-            else if (name.includes('pemberitahuan')) map[kategori.id] = ['info', 'pengumuman', 'pemberitahuan', 'edaran', 'notifikasi'];
-            else if (name.includes('permohonan')) map[kategori.id] = ['mohon', 'permohonan', 'request', 'izin', 'pengajuan'];
-            else if (name.includes('laporan')) map[kategori.id] = ['laporan', 'report', 'evaluasi', 'hasil', 'progress'];
-            else if (name.includes('keuangan')) map[kategori.id] = ['tagihan', 'invoice', 'pembayaran', 'anggaran', 'faktur', 'keuangan', 'dana', 'biaya'];
-            else if (name.includes('kerjasama')) map[kategori.id] = ['kerjasama', 'mou', 'perjanjian', 'partnership', 'kolaborasi'];
-            else if (name.includes('sdm')) map[kategori.id] = ['pegawai', 'karyawan', 'sdm', 'hrd', 'rekrutmen', 'mutasi', 'personalia'];
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+
+        if (name === 'masalahUtamaId') {
+            setFormData(prev => ({ ...prev, klasifikasiId: '' }));
+        }
+    };
+    
+    const handleGenerateNomor = () => {
+        if (!props.penomoranSettings || !props.allSurat || !formData.klasifikasiId || !formData.masalahUtamaId || !formData.jenisSuratKeluar) {
+            alert("Harap pilih Jenis Surat, Masalah Utama, dan Klasifikasi Arsip terlebih dahulu.");
+            return;
+        }
+
+        const { penomoranSettings, allSurat, klasifikasiList, unitKerjaList, currentUser } = props;
+        
+        const format = formData.jenisSuratKeluar === 'SK' ? penomoranSettings.sk : penomoranSettings.biasa;
+
+        // 1. Get Sequence Number (per Masalah Utama)
+        const currentYear = new Date().getFullYear();
+        const suratKeluarTahunIniDenganMasalahSama = allSurat.filter(s => {
+            if (s.tipe !== TipeSurat.KELUAR) return false;
+            const sKeluar = s as SuratKeluar;
+            return new Date(sKeluar.tanggal).getFullYear() === currentYear && sKeluar.masalahUtamaId === formData.masalahUtamaId;
         });
-        return map;
-    }, [kategoriList]);
+        const nomorUrut = suratKeluarTahunIniDenganMasalahSama.length + 1;
 
-    useEffect(() => {
-        if (tipe === TipeSurat.MASUK && !suratToEdit && !kategoriId) {
-            const combinedText = `${perihal.toLowerCase()} ${isi.toLowerCase()}`;
-            if (combinedText.trim().length < 5) return;
-
-            let suggestedCatId = '';
-            for (const catId in categoryKeywordMap) {
-                const keywords = categoryKeywordMap[catId];
-                if (keywords.some(keyword => new RegExp(`\\b${keyword}\\b`, 'i').test(combinedText))) {
-                    suggestedCatId = catId;
-                    break;
-                }
-            }
-            if (suggestedCatId) {
-                 setKategoriId(suggestedCatId);
-                 setIsCategorySuggested(true);
-            }
+        // 2. Get Klasifikasi Code
+        const klasifikasi = klasifikasiList?.find(k => k.id === formData.klasifikasiId);
+        if (!klasifikasi) {
+            alert("Klasifikasi tidak ditemukan.");
+            return;
         }
-    }, [perihal, isi, tipe, suratToEdit, kategoriId, categoryKeywordMap]);
+        const kodeKlasifikasi = klasifikasi.kode;
 
+        // 3. Get Unit Kerja Code (Hierarchical)
+        const unitKerja = unitKerjaList.find(u => u.id === currentUser.unitKerjaId);
+        if (!unitKerja) {
+            alert("Unit kerja pengguna tidak ditemukan.");
+            return;
+        }
+
+        let kodeUnitKerjaLengkap: string;
+        if (unitKerja.tipe === 'Cabang' && unitKerja.indukId) {
+            const induk = unitKerjaList.find(u => u.id === unitKerja.indukId);
+            kodeUnitKerjaLengkap = induk ? `${induk.kode}.${unitKerja.kode}` : unitKerja.kode;
+        } else {
+            kodeUnitKerjaLengkap = unitKerja.kode;
+        }
+        
+        // 4. Replace placeholders
+        const nomorSurat = format
+            .replace(/\[KODE_UNIT_KERJA_LENGKAP\]/g, kodeUnitKerjaLengkap)
+            .replace(/\[KODE_KLASIFIKASI_ARSIP\]/g, kodeKlasifikasi)
+            .replace(/\[NOMOR_URUT_PER_MASALAH\]/g, nomorUrut.toString())
+            .replace(/\[TAHUN_SAAT_INI\]/g, currentYear.toString());
+
+        setFormData(prev => ({ ...prev, nomorSurat }));
+    };
+    
     const handleAiAssist = async () => {
-        setIsAiLoading(true);
-        setAiError('');
-
+        if (!formData.isiRingkasAI) {
+            alert("Mohon isi ringkasan surat untuk menggunakan Bantuan AI.");
+            return;
+        }
+        setIsGenerating(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            const kategoriNames = kategoriList.map(k => k.nama);
-            const sifatOptions = Object.values(SifatSurat);
-
-            const prompt = `
-                Anda adalah asisten administrasi yang cerdas untuk aplikasi E-Arsip. Berdasarkan perihal dan isi ringkas surat masuk berikut, bantu saya melengkapi data.
-                Perihal Awal: "${perihal}"
-                Isi Ringkas Surat: "${isiRingkas}"
-
-                Tugas Anda:
-                1. Buat ringkasan (summary) yang jelas dan padat dalam Bahasa Indonesia untuk dijadikan perihal baru. Maksimal 15 kata.
-                2. Pilih Kategori yang paling sesuai dari daftar berikut: [${kategoriNames.join(', ')}].
-                3. Tentukan Sifat Surat yang paling sesuai dari daftar berikut: [${sifatOptions.join(', ')}].
-
-                Berikan jawaban HANYA dalam format JSON. Pastikan nilai 'categoryName' dan 'sifat' adalah salah satu dari opsi yang diberikan.
-            `;
-            
-            const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            summary: {
-                                type: Type.STRING,
-                                description: "Ringkasan perihal surat yang jelas dan padat."
-                            },
-                            categoryName: {
-                                type: Type.STRING,
-                                description: `Salah satu dari kategori berikut: ${kategoriNames.join(', ')}`,
-                            },
-                            sifat: {
-                                type: Type.STRING,
-                                description: `Salah satu dari sifat surat berikut: ${sifatOptions.join(', ')}`,
-                            },
-                        },
-                        propertyOrdering: ["summary", "categoryName", "sifat"],
-                    },
+            const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+            const schema = {
+                type: Type.OBJECT,
+                properties: {
+                    perihal: { type: Type.STRING, description: 'Judul perihal surat yang singkat dan jelas, maksimal 10 kata.' },
+                    kategori: { type: Type.STRING, description: 'Kategori yang paling sesuai untuk surat ini.', enum: props.kategoriList.map(k => k.nama) },
+                    sifat: { type: Type.STRING, description: 'Sifat urgensi surat ini.', enum: Object.values(SifatSurat) }
                 },
+                required: ['perihal', 'kategori', 'sifat']
+            };
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: `Analisis isi ringkas surat berikut dan ekstrak informasi yang diminta dalam format JSON: "${formData.isiRingkasAI}"`,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: schema,
+                }
             });
 
-            const jsonString = response.text.trim();
-            const result = JSON.parse(jsonString);
-            
-            if (result.summary) setPerihal(result.summary);
+            const result = JSON.parse(response.text.trim());
+            const kategori = props.kategoriList.find(k => k.nama === result.kategori);
 
-            if (result.categoryName) {
-                const matchedKategori = kategoriList.find(k => k.nama.toLowerCase() === result.categoryName.toLowerCase());
-                if (matchedKategori) {
-                    setKategoriId(matchedKategori.id);
-                    setIsCategorySuggested(false); // AI selection is an explicit choice
-                }
-            }
-            
-            if (result.sifat && Object.values(SifatSurat).some(s => s.toLowerCase() === result.sifat.toLowerCase())) {
-                const matchedSifat = Object.values(SifatSurat).find(s => s.toLowerCase() === result.sifat.toLowerCase());
-                if(matchedSifat) setSifat(matchedSifat);
-            }
+            setFormData(prev => ({
+                ...prev,
+                perihal: result.perihal,
+                kategoriId: kategori ? kategori.id : prev.kategoriId,
+                sifat: result.sifat as SifatSurat,
+            }));
 
         } catch (error) {
-            console.error("AI Assist Error:", error);
-            setAiError("Gagal mendapatkan bantuan AI. Silakan coba lagi.");
+            console.error("AI assist failed:", error);
+            alert("Gagal mendapatkan bantuan dari AI. Silakan coba lagi.");
         } finally {
-            setIsAiLoading(false);
+            setIsGenerating(false);
         }
     };
 
+    const handleAiDraftReply = async () => {
+        if (!poinBalasan || !initialData?.suratAsli) {
+            alert("Mohon isi poin-poin balasan untuk membuat draf AI.");
+            return;
+        }
+        setIsGenerating(true);
+        try {
+            const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+            const { suratAsli } = initialData;
+            const prompt = `Anda adalah asisten administrasi yang profesional. Berdasarkan surat masuk berikut:
+- Perihal: "${suratAsli.perihal}"
+- Dari: "${suratAsli.pengirim}"
+- Tanggal Diterima: "${new Date(suratAsli.tanggalDiterima).toLocaleDateString('id-ID')}"
+
+Dan poin-poin balasan yang harus disampaikan berikut:
+"${poinBalasan}"
+
+Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indonesia. Mulai dengan sapaan pembuka dan akhiri dengan penutup, tanpa perlu menyertakan bagian kop, nomor, atau tanda tangan.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            setFormData(prev => ({ ...prev, ringkasan: response.text.trim() }));
+        } catch (error) {
+            console.error("AI draft reply failed:", error);
+            alert("Gagal membuat draf balasan dengan AI.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+    
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
-        let suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'>;
-        
-        if (tipe === TipeSurat.KELUAR) {
-            suratData = {
-                tipe,
-                nomorSurat,
-                tanggal,
-                perihal,
-                isi,
-                pengirim: currentUserUnit?.nama || 'Internal',
-                tujuan: tujuanInternalId ? (unitKerjaList.find(u=>u.id === tujuanInternalId)?.nama || 'Internal') : tujuanEksternal,
-                kategoriId: kategoriId || undefined,
-                masalahUtamaId: masalahUtamaId || undefined,
-                klasifikasiId: klasifikasiId || undefined,
-                jenisSurat: jenisSurat,
-                sifat,
-                tujuanUnitKerjaId: tujuanInternalId || undefined,
+        const isEditMode = !!suratToEdit;
+
+        // For update, merge formData into the existing suratToEdit object
+        if (isEditMode) {
+            const updatedSurat: AnySurat = {
+                ...suratToEdit,
+                ...formData,
             };
-        } else { // Surat Masuk
-             suratData = {
-                tipe,
-                nomorSurat,
-                tanggal,
-                perihal,
-                isi,
-                pengirim: pengirim,
-                tujuan: 'Internal',
-                kategoriId: kategoriId || undefined,
-                sifat,
-            };
+            onSubmit(updatedSurat);
+            onClose();
+            return;
         }
-        
-        onSubmit(suratData);
+
+        // For create, build a new, clean object based on the 'tipe'
+        if (tipe === TipeSurat.MASUK) {
+            const newSurat: Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'> = {
+                nomorSurat: formData.nomorSurat || '',
+                tanggal: formData.tanggal || '',
+                perihal: formData.perihal || '',
+                kategoriId: formData.kategoriId || '',
+                sifat: formData.sifat || SifatSurat.BIASA,
+                tipe: TipeSurat.MASUK,
+                pengirim: formData.pengirim || '',
+                tanggalDiterima: formData.tanggalDiterima || '',
+                isiRingkasAI: formData.isiRingkasAI,
+            };
+            onSubmit(newSurat);
+        } else { // KELUAR
+            const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'tandaTangan'> = {
+                nomorSurat: formData.nomorSurat || '',
+                tanggal: formData.tanggal || '',
+                perihal: formData.perihal || '',
+                kategoriId: formData.kategoriId || '',
+                sifat: formData.sifat || SifatSurat.BIASA,
+                tipe: TipeSurat.KELUAR,
+                tujuan: formData.tujuan || '',
+                tujuanUnitKerjaId: formData.tujuanUnitKerjaId,
+                pembuat: props.currentUser,
+                jenisSuratKeluar: formData.jenisSuratKeluar || 'Biasa',
+                masalahUtamaId: formData.masalahUtamaId || '',
+                klasifikasiId: formData.klasifikasiId || '',
+                ringkasan: formData.ringkasan || '',
+                suratAsliId: formData.suratAsliId,
+            };
+            onSubmit(newSurat);
+        }
+
         onClose();
     };
-    
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            setFileName(e.target.files[0].name);
-        }
-    };
 
-    const title = `${suratToEdit ? 'Edit' : 'Tambah'} Surat ${tipe === TipeSurat.MASUK ? 'Masuk' : 'Keluar'}`;
-    
+    const isEditMode = !!suratToEdit;
+    const title = `${isEditMode ? 'Edit' : 'Tambah'} Surat ${tipe === TipeSurat.MASUK ? 'Masuk' : 'Keluar'}`;
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={title} size="3xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={title} size="2xl">
             <form onSubmit={handleSubmit} className="space-y-4">
-                {tipe === TipeSurat.KELUAR && (
-                    <div className="p-3 bg-slate-50 border rounded-lg space-y-4">
-                        <fieldset>
-                            <legend className="block text-sm font-medium text-slate-700">Jenis Surat</legend>
-                            <div className="mt-2 flex items-center gap-x-6">
-                                {Object.values(JenisSurat).map(js => (
-                                    <div key={js} className="flex items-center">
-                                        <input
-                                            id={`jenis-${js}`}
-                                            name="jenis-surat"
-                                            type="radio"
-                                            value={js}
-                                            checked={jenisSurat === js}
-                                            onChange={() => setJenisSurat(js)}
-                                            className="h-4 w-4 border-gray-300 text-sky-600 focus:ring-sky-500"
-                                        />
-                                        <label htmlFor={`jenis-${js}`} className="ml-2 block text-sm text-gray-900">{js}</label>
-                                    </div>
-                                ))}
-                            </div>
-                        </fieldset>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                  <label htmlFor="masalahUtama" className="block text-sm font-medium text-slate-700">Masalah Utama</label>
-                                  <select id="masalahUtama" value={masalahUtamaId} onChange={e => { setMasalahUtamaId(e.target.value); setKlasifikasiId(''); }} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500">
-                                      <option value="">Pilih Masalah...</option>
-                                      {masalahUtamaList.map(m => <option key={m.id} value={m.id}>{m.kode} - {m.deskripsi}</option>)}
-                                  </select>
-                              </div>
-                               <div>
-                                  <label htmlFor="klasifikasi" className="block text-sm font-medium text-slate-700">Klasifikasi Arsip</label>
-                                  <select id="klasifikasi" value={klasifikasiId} onChange={e => setKlasifikasiId(e.target.value)} required disabled={!masalahUtamaId} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-200">
-                                      <option value="">{masalahUtamaId ? 'Pilih Klasifikasi...' : 'Pilih Masalah Utama Dulu'}</option>
-                                      {filteredKlasifikasi.map(k => <option key={k.id} value={k.id}>{k.kode} - {k.deskripsi}</option>)}
-                                  </select>
-                              </div>
-                          </div>
-                    </div>
-                )}
-                
-                <div>
-                    <label htmlFor="nomorSurat" className="block text-sm font-medium text-slate-700">Nomor Surat</label>
-                    <input 
-                        type="text" 
-                        id="nomorSurat" 
-                        value={nomorSurat} 
-                        onChange={e => setNomorSurat(e.target.value)} 
-                        required 
-                        readOnly={tipe === TipeSurat.KELUAR && !suratToEdit}
-                        className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500 read-only:bg-slate-100 read-only:text-slate-600 font-mono" 
-                    />
-                </div>
-                
-                <div className="flex items-end gap-2">
-                    <div className="flex-grow">
-                        <label htmlFor="perihal" className="block text-sm font-medium text-slate-700">Perihal</label>
-                        <input type="text" id="perihal" value={perihal} onChange={e => setPerihal(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
-                    </div>
-                    {tipe === TipeSurat.MASUK && (
-                        <button 
-                            type="button" 
-                            onClick={handleAiAssist}
-                            disabled={isAiLoading || (!perihal && !isiRingkas)}
-                            className="flex-shrink-0 flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
-                            aria-label="Dapatkan bantuan AI untuk mengisi form"
-                        >
-                            {isAiLoading ? (
-                                <>
-                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Memproses...
-                                </>
-                            ) : (
-                                <>
-                                    <SparklesIcon className="w-4 h-4 mr-2" />
-                                    Bantuan AI
-                                </>
-                            )}
-                        </button>
-                    )}
-                </div>
-                 
                 {tipe === TipeSurat.MASUK && (
-                     <div>
-                        <label htmlFor="isiRingkas" className="block text-sm font-medium text-slate-700">Isi Ringkas Surat (untuk Bantuan AI)</label>
-                        <textarea id="isiRingkas" value={isiRingkas} onChange={e => setIsiRingkas(e.target.value)} rows={3} placeholder="Salin-tempel atau tulis isi ringkas surat di sini untuk mendapatkan perihal, kategori, dan sifat surat otomatis..." className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500"></textarea>
-                        {aiError && <p className="text-sm text-red-600 mt-1">{aiError}</p>}
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <label className="block text-sm font-medium text-slate-700">Isi Ringkas Surat (untuk Bantuan AI)</label>
+                        <textarea name="isiRingkasAI" value={formData.isiRingkasAI || ''} onChange={handleChange} rows={3} placeholder="Salin-tempel atau tulis ringkasan isi surat di sini..." className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
                     </div>
                 )}
                 
                 <div>
-                    <label htmlFor="isi" className="block text-sm font-medium text-slate-700">Isi Surat</label>
-                    <textarea id="isi" value={isi} onChange={e => setIsi(e.target.value)} rows={tipe === TipeSurat.KELUAR ? 8 : 4} placeholder={tipe === TipeSurat.KELUAR ? "Tulis isi lengkap surat di sini..." : "Isi atau catatan singkat (opsional)..."} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500"></textarea>
+                    <label className="block text-sm font-medium text-slate-700">Perihal</label>
+                    <div className="relative">
+                        <input type="text" name="perihal" value={formData.perihal || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                        {tipe === TipeSurat.MASUK && (
+                             <button type="button" onClick={handleAiAssist} disabled={isGenerating || !formData.isiRingkasAI} className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center bg-slate-700 text-white px-2 py-1 rounded-md hover:bg-slate-800 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                                <SparklesIcon className="w-4 h-4 mr-1" />
+                                {isGenerating ? 'Memproses...' : 'Bantuan AI'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700">Tanggal Surat</label>
+                        <input type="date" name="tanggal" value={formData.tanggal || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700">Kategori</label>
+                        <select name="kategoriId" value={formData.kategoriId || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                            {props.kategoriList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                        </select>
+                    </div>
                 </div>
                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="tanggal" className="block text-sm font-medium text-slate-700">Tanggal Surat</label>
-                        <input type="date" id="tanggal" value={tanggal} onChange={e => setTanggal(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
-                    </div>
-                    {tipe === TipeSurat.MASUK && (
-                        <div>
-                            <label htmlFor="pengirim" className="block text-sm font-medium text-slate-700">Pengirim</label>
-                            <input type="text" id="pengirim" value={pengirim} onChange={e => setPengirim(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                {tipe === TipeSurat.MASUK ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <div>
+                            <label className="block text-sm font-medium text-slate-700">Nomor Surat</label>
+                            <input type="text" name="nomorSurat" value={formData.nomorSurat || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
                         </div>
-                    )}
-                 </div>
-                 
-                 {tipe === TipeSurat.KELUAR && (
-                    <div className="bg-slate-50 p-3 rounded-md border">
-                        <p className="text-sm font-medium text-slate-800 mb-2">Tujuan Surat</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {canSendInternal && (
-                             <div>
-                                <label htmlFor="tujuanInternalId" className="block text-sm font-medium text-slate-700">Tujuan Internal (Cabang)</label>
-                                 <select id="tujuanInternalId" value={tujuanInternalId} onChange={e => setTujuanInternalId(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md">
-                                    <option value="">Pilih Kantor Cabang</option>
-                                    {unitKerjaList.filter(u => u.tipe === 'Cabang').map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
+                         <div>
+                            <label className="block text-sm font-medium text-slate-700">Pengirim</label>
+                            <input type="text" name="pengirim" value={formData.pengirim || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium text-slate-700">Tanggal Diterima</label>
+                            <input type="date" name="tanggalDiterima" value={formData.tanggalDiterima || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                        </div>
+                    </div>
+                ) : ( // SURAT KELUAR
+                    <>
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">Jenis Surat</label>
+                                <select name="jenisSuratKeluar" value={formData.jenisSuratKeluar || 'Biasa'} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    <option value="Biasa">Surat Biasa</option>
+                                    <option value="SK">Surat Keputusan (SK)</option>
                                 </select>
                             </div>
-                        )}
-                        <div>
-                             <label htmlFor="tujuanEksternal" className="block text-sm font-medium text-slate-700">Tujuan Eksternal</label>
-                            <input type="text" id="tujuanEksternal" value={tujuanEksternal} onChange={e => setTujuanEksternal(e.target.value)} required={!tujuanInternalId} disabled={!!tujuanInternalId} placeholder={tujuanInternalId ? 'Tujuan internal dipilih' : ''} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-200" />
-                        </div>
-
-                        </div>
-                    </div>
-                 )}
-
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="kategori" className="block text-sm font-medium text-slate-700">
-                           Kategori
-                           {isCategorySuggested && <span className="ml-2 text-xs font-normal text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Disarankan</span>}
-                        </label>
-                        <select id="kategori" value={kategoriId} onChange={e => { setKategoriId(e.target.value); setIsCategorySuggested(false); }} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md">
-                            <option value="">Pilih Kategori (Opsional)</option>
-                            {kategoriList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="sifat" className="block text-sm font-medium text-slate-700">Sifat Surat</label>
-                        <select id="sifat" value={sifat} onChange={e => setSifat(e.target.value as SifatSurat)} required className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md">
-                            {Object.values(SifatSurat).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-                </div>
-                <div>
-                     <label className="block text-sm font-medium text-slate-700">Lampiran File</label>
-                     <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                        <div className="space-y-1 text-center">
-                            <PaperClipIcon className="mx-auto h-10 w-10 text-gray-400" />
-                            <div className="flex text-sm text-gray-600">
-                                <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-sky-600 hover:text-sky-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-sky-500">
-                                    <span>Unggah file</span>
-                                    <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept=".pdf,.doc,.docx,.xls,.xlsx" />
-                                </label>
-                                <p className="pl-1">atau seret dan lepas</p>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">Masalah Utama</label>
+                                <select name="masalahUtamaId" value={formData.masalahUtamaId || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    <option value="">Pilih Masalah...</option>
+                                    {props.masalahUtamaList?.map(m => <option key={m.id} value={m.id}>{m.kode} - {m.deskripsi}</option>)}
+                                </select>
                             </div>
-                            <p className="text-xs text-gray-500">PDF, DOCX, atau Excel (maks. 150MB)</p>
-                            {fileName && <p className="text-xs text-emerald-600 font-semibold pt-2">{fileName}</p>}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">Klasifikasi Arsip</label>
+                                <select name="klasifikasiId" value={formData.klasifikasiId || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" disabled={!formData.masalahUtamaId}>
+                                    <option value="">Pilih Klasifikasi...</option>
+                                    {filteredKlasifikasi.map(k => <option key={k.id} value={k.id}>{k.kode} - {k.deskripsi}</option>)}
+                                </select>
+                            </div>
                         </div>
+
+                        <div>
+                             <label className="block text-sm font-medium text-slate-700">Nomor Surat</label>
+                             <div className="flex items-center space-x-2">
+                                <input type="text" name="nomorSurat" value={formData.nomorSurat || ''} onChange={handleChange} required placeholder="Klik tombol untuk generate nomor..." className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-slate-100" readOnly />
+                                <button type="button" onClick={handleGenerateNomor} className="mt-1 whitespace-nowrap bg-slate-700 text-white px-3 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium disabled:opacity-50" disabled={!formData.klasifikasiId}>
+                                    Buat Nomor Otomatis
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700">Tujuan</label>
+                            <input type="text" name="tujuan" value={formData.tujuan || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                        </div>
+                        {initialData?.suratAsli && (
+                             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                                <h4 className="text-sm font-semibold text-blue-800">Membalas Surat:</h4>
+                                <p className="text-xs text-slate-600">
+                                    <span className="font-bold">Perihal:</span> {initialData.suratAsli.perihal} <br/>
+                                    <span className="font-bold">Dari:</span> {initialData.suratAsli.pengirim}
+                                </p>
+                                <label className="block text-sm font-medium text-slate-700 pt-2">Poin-poin utama balasan</label>
+                                <textarea value={poinBalasan} onChange={e => setPoinBalasan(e.target.value)} rows={3} placeholder="Contoh: Setujui permohonan, jadwalkan rapat hari Jumat pukul 10.00, minta data tambahan." className="block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                                <div className="text-right">
+                                    <button type="button" onClick={handleAiDraftReply} disabled={isGenerating || !poinBalasan} className="inline-flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <SparklesIcon className="w-4 h-4 mr-2" />
+                                        {isGenerating ? 'Membuat...' : 'Buat Draf Isi Surat dengan AI'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                         <div>
+                            <label className="block text-sm font-medium text-slate-700">Isi Surat (Ringkasan)</label>
+                             <textarea name="ringkasan" value={formData.ringkasan || ''} onChange={handleChange} rows={5} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                        </div>
+                    </>
+                )}
+                
+                 <div>
+                        <label className="block text-sm font-medium text-slate-700">Sifat</label>
+                        <select name="sifat" value={formData.sifat || SifatSurat.BIASA} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                            {Object.values(SifatSurat).map(s => <option key={s as string} value={s as string}>{s}</option>)}
+                        </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Lampiran File</label>
+                    <div className="mt-1 flex items-center">
+                        <label htmlFor="file-upload" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50">
+                            <PaperClipIcon className="w-4 h-4 inline-block mr-2" />
+                            <span>Pilih File</span>
+                            <input id="file-upload" name="file-upload" type="file" className="sr-only" />
+                        </label>
+                        <span className="ml-3 text-sm text-slate-500">(Fitur unggah file disimulasikan)</span>
                     </div>
                 </div>
 
                 <div className="flex justify-end pt-4 space-x-2">
                     <button type="button" onClick={onClose} className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Batal</button>
-                    <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700">
-                        {suratToEdit ? 'Simpan Perubahan' : 'Simpan Surat'}
+                    <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800">
+                        {isEditMode ? 'Simpan Perubahan' : 'Simpan Surat'}
                     </button>
                 </div>
             </form>

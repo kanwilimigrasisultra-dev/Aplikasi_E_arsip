@@ -1,5 +1,7 @@
+
 import React from 'react';
-import { AnySurat } from '../types';
+// FIX: Import TipeSurat to use as a type guard.
+import { AnySurat, TipeSurat } from '../types';
 import Modal from './Modal';
 import { PaperClipIcon } from './icons';
 
@@ -18,7 +20,11 @@ const FileViewerModal: React.FC<FileViewerModalProps> = ({ isOpen, onClose, sura
         <div>
           <h4 className="font-semibold text-slate-800">Perihal: {surat.perihal}</h4>
           <p className="text-sm text-slate-500">
-            Dari: {surat.pengirim} | Kepada: {surat.tujuan} | Tanggal: {new Date(surat.tanggal).toLocaleDateString('id-ID')}
+            {/* FIX: Use a type guard on surat.tipe to safely access properties of SuratMasuk and SuratKeluar */}
+            {surat.tipe === TipeSurat.MASUK
+              ? `Dari: ${surat.pengirim} | Kepada: (Unit Internal)`
+              : `Dari: ${surat.pembuat.nama} | Kepada: ${surat.tujuan}`
+            } | Tanggal: {new Date(surat.tanggal).toLocaleDateString('id-ID')}
           </p>
         </div>
         <div className="w-full h-[60vh] bg-slate-200 rounded-lg flex items-center justify-center border">

@@ -57,16 +57,16 @@ const SuratChart: React.FC<SuratChartProps> = ({ allSurat }) => {
                         {
                             label: 'Surat Masuk',
                             data: suratMasukData,
-                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: 'rgba(100, 116, 139, 0.7)',
+                            borderColor: 'rgba(100, 116, 139, 1)',
                             borderWidth: 1,
                             borderRadius: 4,
                         },
                         {
                             label: 'Surat Keluar',
                             data: suratKeluarData,
-                            backgroundColor: 'rgba(245, 158, 11, 0.7)',
-                            borderColor: 'rgba(245, 158, 11, 1)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
                             borderWidth: 1,
                             borderRadius: 4,
                         }

@@ -28,16 +28,16 @@ const PengaturanPenomoran: React.FC<PengaturanPenomoranProps> = ({ settings, onS
     };
     
     const placeholders = [
-      { tag: '[KODE_UNIT_LENGKAP]', desc: 'Kode unit lengkap. Otomatis menjadi KODE_WILAYAH (untuk pusat) atau KODE_WILAYAH.KODE_CABANG (untuk unit cabang).' },
-      { tag: '[KODE_KLASIFIKASI_ARSIP]', desc: 'Kode klasifikasi lengkap (cth: PR.01.01).' },
-      { tag: '[NOMOR_SURAT_OTOMATIS]', desc: 'Nomor urut otomatis tahunan.' },
-      { tag: '[TAHUN_SAAT_INI]', desc: 'Tahun empat digit (cth: 2024). Khusus untuk SK.' },
+      { tag: '[KODE_UNIT_KERJA_LENGKAP]', desc: 'Kode lengkap unit kerja, termasuk induk jika ada (cth: WIM.27 atau WIM.27.IMI.1).' },
+      { tag: '[KODE_KLASIFIKASI_ARSIP]', desc: 'Kode klasifikasi arsip lengkap (cth: PR.01.01).' },
+      { tag: '[NOMOR_URUT_PER_MASALAH]', desc: 'Nomor urut per masalah utama (PR, GR, dll), reset tahunan.' },
+      { tag: '[TAHUN_SAAT_INI]', desc: 'Tahun empat digit (cth: 2024).' },
     ];
 
     return (
          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
             <div className="flex items-center mb-4">
-                <CogIcon className="w-6 h-6 mr-3 text-sky-700" />
+                <CogIcon className="w-6 h-6 mr-3 text-slate-700" />
                 <h3 className="text-lg font-semibold text-slate-800">Pengaturan Penomoran Surat Otomatis</h3>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -49,7 +49,7 @@ const PengaturanPenomoran: React.FC<PengaturanPenomoranProps> = ({ settings, onS
                         id="biasa" 
                         value={formState.biasa} 
                         onChange={handleChange} 
-                        className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500 font-mono" 
+                        className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500 font-mono" 
                     />
                 </div>
                 
@@ -61,7 +61,7 @@ const PengaturanPenomoran: React.FC<PengaturanPenomoranProps> = ({ settings, onS
                         id="sk" 
                         value={formState.sk} 
                         onChange={handleChange} 
-                        className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500 font-mono" 
+                        className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500 font-mono" 
                     />
                 </div>
                 
@@ -70,7 +70,7 @@ const PengaturanPenomoran: React.FC<PengaturanPenomoranProps> = ({ settings, onS
                     <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs">
                         {placeholders.map(p => (
                              <div key={p.tag} className="flex items-baseline">
-                                <code className="font-bold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded">{p.tag}</code>
+                                <code className="font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">{p.tag}</code>
                                 <span className="ml-2 text-slate-600">{p.desc}</span>
                             </div>
                         ))}
@@ -84,7 +84,7 @@ const PengaturanPenomoran: React.FC<PengaturanPenomoranProps> = ({ settings, onS
                         id="resetSequence" 
                         value={formState.resetSequence} 
                         onChange={handleChange} 
-                        className="mt-1 block w-full max-w-xs shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500"
+                        className="mt-1 block w-full max-w-xs shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500"
                     >
                         <option value="yearly">Setiap Tahun</option>
                         <option value="monthly" disabled>Setiap Bulan (Belum Tersedia)</option>
@@ -100,7 +100,7 @@ const PengaturanPenomoran: React.FC<PengaturanPenomoranProps> = ({ settings, onS
                                 <span>Tersimpan!</span>
                             </div>
                         )}
-                        <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+                        <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                             Simpan Pengaturan
                         </button>
                     </div>

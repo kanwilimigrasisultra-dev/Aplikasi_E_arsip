@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { ShieldCheckIcon, BellIcon, UsersIcon, ClipboardListIcon, CogIcon } from './icons';
-import { User, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings } from '../types';
+import { User, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings } from '../types';
 import PengaturanKopSurat from './PengaturanKopSurat';
 import PengaturanPenomoran from './PengaturanPenomoran';
+import PengaturanBranding from './PengaturanBranding';
 
 
 const SettingsCard: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
@@ -24,8 +25,8 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabl
             type="button"
             onClick={() => onChange(!enabled)}
             className={`${
-                enabled ? 'bg-sky-600' : 'bg-slate-300'
-            } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2`}
+                enabled ? 'bg-slate-700' : 'bg-slate-300'
+            } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2`}
             role="switch"
             aria-checked={enabled}
         >
@@ -38,7 +39,7 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabl
     </div>
 );
 
-type ActiveTab = 'preferensi' | 'akun' | 'kopSurat' | 'sistem' | 'penomoran';
+type ActiveTab = 'preferensi' | 'akun' | 'kopSurat' | 'sistem' | 'penomoran' | 'branding';
 
 const Pengaturan: React.FC<{
     settings: AppSettings;
@@ -48,7 +49,10 @@ const Pengaturan: React.FC<{
     onUpdateKopSurat: (settings: KopSuratSettings) => void;
     penomoranSettings: PenomoranSettings;
     onUpdatePenomoran: (settings: PenomoranSettings) => void;
-}> = ({ settings, onSettingsChange, currentUser, kopSuratSettings, onUpdateKopSurat, penomoranSettings, onUpdatePenomoran }) => {
+    brandingSettings: BrandingSettings;
+    onUpdateBranding: (settings: BrandingSettings) => void;
+}> = (props) => {
+    const { settings, onSettingsChange, currentUser, kopSuratSettings, onUpdateKopSurat, penomoranSettings, onUpdatePenomoran, brandingSettings, onUpdateBranding } = props;
     const [activeTab, setActiveTab] = useState<ActiveTab>('preferensi');
     
     const handleSettingsChange = (key: keyof AppSettings, value: any) => {
@@ -63,7 +67,7 @@ const Pengaturan: React.FC<{
             case 'preferensi':
                 return (
                      <div className="space-y-6">
-                        <SettingsCard icon={<BellIcon className="w-6 h-6 text-sky-700" />} title="Preferensi Notifikasi">
+                        <SettingsCard icon={<BellIcon className="w-6 h-6 text-slate-700" />} title="Preferensi Notifikasi">
                             <ToggleSwitch 
                                 label="Notifikasi Disposisi Baru"
                                 enabled={settings.notifications.disposisiBaru}
@@ -117,6 +121,8 @@ const Pengaturan: React.FC<{
                 return <PengaturanKopSurat settings={kopSuratSettings} onSave={onUpdateKopSurat} />;
             case 'penomoran':
                 return <PengaturanPenomoran settings={penomoranSettings} onSave={onUpdatePenomoran} />;
+             case 'branding':
+                return <PengaturanBranding settings={brandingSettings} onSave={onUpdateBranding} />;
             case 'sistem':
                 return (
                      <SettingsCard icon={<CogIcon className="w-6 h-6 text-slate-700" />} title="Pengaturan Tanda Tangan Digital">
@@ -132,7 +138,7 @@ const Pengaturan: React.FC<{
                                             value={SignatureMethod.GAMBAR}
                                             checked={settings.signatureMethod === SignatureMethod.GAMBAR}
                                             onChange={() => handleSettingsChange('signatureMethod', SignatureMethod.GAMBAR)}
-                                            className="focus:ring-sky-500 h-4 w-4 text-sky-600 border-gray-300"
+                                            className="focus:ring-slate-500 h-4 w-4 text-slate-600 border-gray-300"
                                         />
                                     </div>
                                     <div className="ml-3 text-sm">
@@ -149,7 +155,7 @@ const Pengaturan: React.FC<{
                                             value={SignatureMethod.QR_CODE}
                                             checked={settings.signatureMethod === SignatureMethod.QR_CODE}
                                             onChange={() => handleSettingsChange('signatureMethod', SignatureMethod.QR_CODE)}
-                                            className="focus:ring-sky-500 h-4 w-4 text-sky-600 border-gray-300"
+                                            className="focus:ring-slate-500 h-4 w-4 text-slate-600 border-gray-300"
                                         />
                                     </div>
                                     <div className="ml-3 text-sm">
@@ -169,7 +175,7 @@ const Pengaturan: React.FC<{
     const TabButton: React.FC<{tabId: ActiveTab; label: string}> = ({ tabId, label}) => (
         <button
             onClick={() => setActiveTab(tabId)}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tabId ? 'border-sky-500 text-sky-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tabId ? 'border-slate-700 text-slate-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
         >
             {label}
         </button>
@@ -185,6 +191,7 @@ const Pengaturan: React.FC<{
                     <TabButton tabId="akun" label="Akun" />
                     <TabButton tabId="kopSurat" label="Kop Surat" />
                     <TabButton tabId="penomoran" label="Penomoran" />
+                    <TabButton tabId="branding" label="Branding & Logo" />
                     <TabButton tabId="sistem" label="Sistem" />
                 </nav>
             </div>

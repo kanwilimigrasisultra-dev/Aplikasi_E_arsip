@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { SuratMasuk as TSuratMasuk, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, TipeSurat, SifatDisposisi, StatusDisposisi } from '../types';
+import { SuratMasuk as TSuratMasuk, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, TipeSurat, SifatDisposisi, StatusDisposisi, SuratMasuk as SuratMasukType } from '../types';
 import { PlusIcon, SearchIcon, RefreshIcon } from './icons';
 import SuratFormModal from './SuratFormModal';
 import SuratDetailModal from './SuratDetailModal';
@@ -34,6 +35,7 @@ interface SuratMasukProps {
     onArchive: (suratId: string, folderId: string) => void;
     onAddDisposisi: (suratId: string, catatan: string, tujuanId: string, sifat: SifatDisposisi) => void;
     onUpdateDisposisiStatus: (suratId: string, disposisiId: string, status: StatusDisposisi) => void;
+    onReplyWithAI: (surat: TSuratMasuk) => void;
 }
 
 const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
@@ -112,6 +114,15 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
         setUnitKerjaFilter('');
     };
     
+    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'> | AnySurat) => {
+        if ('id' in suratData) {
+            props.onUpdate(suratData as AnySurat);
+        } else {
+            props.onSubmit(suratData as Omit<SuratMasukType, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>);
+        }
+        setFormModalOpen(false);
+    };
+    
     const getSifatBadge = (sifat: SifatSurat) => {
         const colorMap = {
             [SifatSurat.BIASA]: 'bg-slate-100 text-slate-800',
@@ -127,7 +138,7 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
             <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
                     <h3 className="text-xl font-bold text-slate-800">Daftar Surat Masuk</h3>
-                    <button onClick={() => { setSuratToEdit(null); setFormModalOpen(true); }} className="flex items-center bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition-colors shadow">
+                    <button onClick={() => { setSuratToEdit(null); setFormModalOpen(true); }} className="flex items-center bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow">
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Tambah Surat Masuk
                     </button>
@@ -139,42 +150,42 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Cari</label>
                         <div className="relative">
                            <SearchIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                           <input type="text" placeholder="Perihal, nomor, pengirim..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" />
+                           <input type="text" placeholder="Perihal, nomor, pengirim..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500" />
                         </div>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Tgl. Diterima (Mulai)</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" />
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Tgl. Diterima (Akhir)</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" />
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500" />
                     </div>
                      <div className="col-span-1 md:col-span-2 lg:col-span-1">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Sifat</label>
-                        <select value={sifatFilter} onChange={e => setSifatFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white">
+                        <select value={sifatFilter} onChange={e => setSifatFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 bg-white">
                             <option value="">Semua Sifat</option>
-                            {Object.values(SifatSurat).map(s => <option key={s} value={s}>{s}</option>)}
+                            {Object.values(SifatSurat).map(s => <option key={s as string} value={s as string}>{s}</option>)}
                         </select>
                     </div>
                     <div className="col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-1">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Kategori</label>
-                        <select value={kategoriFilter} onChange={e => setKategoriFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white">
+                        <select value={kategoriFilter} onChange={e => setKategoriFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 bg-white">
                             <option value="">Semua Kategori</option>
                             {props.kategoriList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
                         </select>
                     </div>
                     <div className="col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-2">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Unit Kerja Pengirim</label>
-                        <select value={unitKerjaFilter} onChange={e => setUnitKerjaFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white">
+                        <select value={unitKerjaFilter} onChange={e => setUnitKerjaFilter(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 bg-white">
                             <option value="">Semua Unit</option>
                             {props.unitKerjaList.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
                         </select>
                     </div>
                      <div className="col-span-full xl:col-span-1">
-                        <button onClick={handleResetFilters} className="w-full flex items-center justify-center bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow">
+                        <button onClick={handleResetFilters} className="w-full flex items-center justify-center bg-slate-500 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition-colors shadow">
                             <RefreshIcon className="w-5 h-5 mr-2" />
-                            Reset
+                            Atur Ulang
                         </button>
                     </div>
                 </div>
@@ -203,7 +214,7 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
                                     <td className="px-6 py-4">{getSifatBadge(surat.sifat)}</td>
                                     <td className="px-6 py-4">{surat.disposisi.length > 0 ? `${surat.disposisi.length} disposisi` : 'Belum ada'}</td>
                                     <td className="px-6 py-4 text-center space-x-2">
-                                        <button onClick={() => handleOpenDetail(surat)} className="font-medium text-sky-600 hover:text-sky-800">Detail</button>
+                                        <button onClick={() => handleOpenDetail(surat)} className="font-medium text-blue-600 hover:text-blue-800">Detail</button>
                                         <button onClick={() => handleOpenEdit(surat)} className="font-medium text-amber-600 hover:text-amber-800">Edit</button>
                                         <button onClick={() => handleOpenArchive(surat.id)} className="font-medium text-emerald-600 hover:text-emerald-800">Arsip</button>
                                     </td>
@@ -217,7 +228,7 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
             <SuratFormModal
                 isOpen={isFormModalOpen}
                 onClose={() => setFormModalOpen(false)}
-                onSubmit={props.onSubmit}
+                onSubmit={handleFormSubmit}
                 tipe={TipeSurat.MASUK}
                 kategoriList={props.kategoriList}
                 unitKerjaList={props.unitKerjaList}
@@ -237,6 +248,7 @@ const SuratMasuk: React.FC<SuratMasukProps> = (props) => {
                     onAddDisposisi={props.onAddDisposisi}
                     onUpdateDisposisiStatus={props.onUpdateDisposisiStatus}
                     onTambahTandaTangan={() => {}} // Not applicable for Surat Masuk
+                    onReplyWithAI={props.onReplyWithAI}
                     kopSuratSettings={props.kopSuratSettings}
                     appSettings={props.appSettings}
                     allSurat={props.allSurat}

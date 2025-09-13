@@ -73,16 +73,16 @@ const UnitKerjaFormModal: React.FC<{
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label htmlFor="nama" className="block text-sm font-medium text-slate-700">Nama Unit Kerja</label>
-                        <input type="text" id="nama" value={nama} onChange={e => setNama(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                        <input type="text" id="nama" value={nama} onChange={e => setNama(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                     </div>
                     <div>
                         <label htmlFor="kode" className="block text-sm font-medium text-slate-700">Kode Unit</label>
-                        <input type="text" id="kode" value={kode} onChange={e => setKode(e.target.value)} required placeholder="cth: WIM.27" className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                        <input type="text" id="kode" value={kode} onChange={e => setKode(e.target.value)} required placeholder="cth: WIM.27" className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                     </div>
                 </div>
                 <div>
                     <label htmlFor="tipe" className="block text-sm font-medium text-slate-700">Tipe Unit</label>
-                    <select id="tipe" value={tipe} onChange={e => setTipe(e.target.value as 'Pusat' | 'Cabang')} required className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md">
+                    <select id="tipe" value={tipe} onChange={e => setTipe(e.target.value as 'Pusat' | 'Cabang')} required className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-slate-500 focus:border-slate-500 sm:text-sm rounded-md">
                         <option value="Pusat">Pusat / Wilayah</option>
                         <option value="Cabang">Cabang / Unit</option>
                     </select>
@@ -90,7 +90,7 @@ const UnitKerjaFormModal: React.FC<{
                 {tipe === 'Cabang' && (
                     <div>
                         <label htmlFor="indukId" className="block text-sm font-medium text-slate-700">Unit Induk (Wilayah)</label>
-                        <select id="indukId" value={indukId} onChange={e => setIndukId(e.target.value)} required className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md">
+                        <select id="indukId" value={indukId} onChange={e => setIndukId(e.target.value)} required className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-slate-500 focus:border-slate-500 sm:text-sm rounded-md">
                             <option value="">Pilih Unit Induk</option>
                             {unitKerjaList.filter(u => u.tipe === 'Pusat').map(unit => (
                                 <option key={unit.id} value={unit.id}>{unit.nama}</option>
@@ -101,20 +101,20 @@ const UnitKerjaFormModal: React.FC<{
                 <div className="border-t pt-4 space-y-4">
                      <div>
                         <label htmlFor="alamat" className="block text-sm font-medium text-slate-700">Alamat</label>
-                        <input type="text" id="alamat" value={alamat} onChange={e => setAlamat(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                        <input type="text" id="alamat" value={alamat} onChange={e => setAlamat(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                     </div>
                      <div>
                         <label htmlFor="website" className="block text-sm font-medium text-slate-700">Website</label>
-                        <input type="text" id="website" value={website} onChange={e => setWebsite(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                        <input type="text" id="website" value={website} onChange={e => setWebsite(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                     </div>
                      <div>
                         <label htmlFor="kontak" className="block text-sm font-medium text-slate-700">Kontak (Email/Telepon)</label>
-                        <input type="text" id="kontak" value={kontak} onChange={e => setKontak(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500" />
+                        <input type="text" id="kontak" value={kontak} onChange={e => setKontak(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
                     </div>
                 </div>
                 <div className="flex justify-end pt-4 space-x-2">
                     <button type="button" onClick={onClose} className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Batal</button>
-                    <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700">
+                    <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800">
                         {unitToEdit ? 'Simpan Perubahan' : 'Simpan Unit Kerja'}
                     </button>
                 </div>
@@ -200,7 +200,7 @@ const ManajemenUnitKerja: React.FC<ManajemenUnitKerjaProps> = ({ unitKerjaList, 
             <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex justify-between items-start mb-4 flex-wrap gap-4">
                     <div className="flex items-center">
-                        <OfficeBuildingIcon className="w-6 h-6 mr-3 text-sky-700" />
+                        <OfficeBuildingIcon className="w-6 h-6 mr-3 text-slate-700" />
                         <div>
                              <h3 className="text-lg font-semibold text-slate-800">
                                 {filterId ? 'Menampilkan Unit Kerja Terfilter' : 'Daftar Unit Kerja'}
@@ -221,7 +221,7 @@ const ManajemenUnitKerja: React.FC<ManajemenUnitKerjaProps> = ({ unitKerjaList, 
                                 Hapus Filter
                             </button>
                         )}
-                        <button onClick={handleOpenAddModal} className="flex items-center bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition-colors shadow">
+                        <button onClick={handleOpenAddModal} className="flex items-center bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow">
                             <PlusIcon className="w-5 h-5 mr-2" />
                             Tambah Unit Kerja
                         </button>
@@ -250,7 +250,7 @@ const ManajemenUnitKerja: React.FC<ManajemenUnitKerjaProps> = ({ unitKerjaList, 
                                     </td>
                                     <td className="px-6 py-4">{getIndukName(unit.indukId)}</td>
                                     <td className="px-6 py-4 text-center space-x-4">
-                                        <button onClick={() => handleOpenEditModal(unit)} className="font-medium text-sky-600 hover:text-sky-800 transition-colors">
+                                        <button onClick={() => handleOpenEditModal(unit)} className="font-medium text-blue-600 hover:text-blue-800 transition-colors">
                                             <PencilIcon className="w-5 h-5 inline-block"/>
                                         </button>
                                         <button onClick={() => handleOpenDeleteModal(unit.id)} className="font-medium text-red-600 hover:text-red-800 transition-colors">

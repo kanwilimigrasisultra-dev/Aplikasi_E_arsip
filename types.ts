@@ -1,89 +1,59 @@
-export enum StatusDisposisi {
-  PENDING = 'Pending',
-  DIPROSES = 'Diproses',
-  SELESAI = 'Selesai',
-  DIBACA = 'Dibaca'
-}
-
-export enum SifatDisposisi {
-  SEGERA = 'Segera',
-  PENTING = 'Penting',
-  BIASA = 'Biasa',
-}
-
 export enum TipeSurat {
   MASUK = 'MASUK',
-  KELUAR = 'KELUAR'
-}
-
-export enum JenisSurat {
-  BIASA = 'Surat Biasa',
-  SK = 'Surat Keputusan'
+  KELUAR = 'KELUAR',
 }
 
 export enum SifatSurat {
   BIASA = 'Biasa',
   PENTING = 'Penting',
   SANGAT_PENTING = 'Sangat Penting',
-  RAHASIA = 'Rahasia'
-}
-
-export enum SignatureMethod {
-  GAMBAR = 'Gambar',
-  QR_CODE = 'QR Code'
+  RAHASIA = 'Rahasia',
 }
 
 export enum UserRole {
-  SUPER_ADMIN = 'Administrator Utama',
+  SUPER_ADMIN = 'Super Admin',
   ADMIN = 'Admin',
   PIMPINAN = 'Pimpinan',
   MANAJERIAL = 'Manajerial',
   STAF = 'Staf',
 }
 
-export interface PenomoranSettings {
-  biasa: string;
-  sk: string;
-  resetSequence: 'yearly' | 'monthly';
+export enum SifatDisposisi {
+  BIASA = 'Biasa',
+  SEGERA = 'Segera',
+  SANGAT_SEGERA = 'Sangat Segera',
 }
 
-export interface AppSettings {
-  notifications: {
-    disposisiBaru: boolean;
-    suratMasukBaru: boolean;
-    statusDisposisiUpdate: boolean;
-  };
-  theme: {
-    darkMode: boolean;
-  };
-  signatureMethod: SignatureMethod;
+export enum StatusDisposisi {
+  DIPROSES = 'Diproses',
+  SELESAI = 'Selesai',
+  DITOLAK = 'Ditolak',
 }
 
-export interface UnitKerja {
-  id: string;
-  nama: string;
-  kode: string; // Kode unik untuk penomoran, misal: WIM.27
-  tipe: 'Pusat' | 'Cabang';
-  indukId?: string;
-  alamat: string;
-  kontak: string;
-  website: string;
+export enum SignatureMethod {
+  GAMBAR = 'gambar',
+  QR_CODE = 'qrcode',
 }
 
-export interface KopSuratSettings {
-  logoUrl: string;
-  namaKementerian: string;
-  namaDirektorat: string;
-}
 
 export interface User {
   id: string;
   nama: string;
   email: string;
-  jabatan: string; // For display purposes
-  role: UserRole; // For permissions
-  password?: string;
+  jabatan: string;
+  role: UserRole;
   unitKerjaId: string;
+}
+
+export interface UnitKerja {
+  id: string;
+  nama: string;
+  kode: string;
+  tipe: 'Pusat' | 'Cabang';
+  indukId?: string;
+  alamat: string;
+  kontak: string;
+  website: string;
 }
 
 export interface KategoriSurat {
@@ -93,69 +63,61 @@ export interface KategoriSurat {
 
 export interface MasalahUtama {
   id: string;
-  kode: string; // PR, GR, etc.
-  deskripsi: string; // Perencanaan, Keimigrasian, etc.
+  kode: string;
+  deskripsi: string;
 }
-
 
 export interface KlasifikasiSurat {
-  id: string;
-  kode: string; // e.g., PR.01.01
-  deskripsi: string;
-  masalahUtamaId: string;
+    id: string;
+    kode: string;
+    deskripsi: string;
+    masalahUtamaId: string;
 }
-
 
 export interface Disposisi {
   id: string;
-  tujuan: User;
-  catatan: string;
-  tanggalDisposisi: string;
-  status: StatusDisposisi;
-  sifat: SifatDisposisi;
   pembuat: User;
-}
-
-export interface TandaTangan {
-  userId: string;
-  namaPenandaTangan: string;
-  jabatanPenandaTangan: string;
-  timestamp: string;
-  signatureDataUrl: string; // base64 data URL for image or QR code
-  verifikasiUrl?: string; // URL for QR code verification
-}
-
-export interface Surat {
-  id: string;
-  tipe: TipeSurat;
-  nomorSurat: string;
+  tujuan: User;
   tanggal: string;
+  catatan: string;
+  sifat: SifatDisposisi;
+  status: StatusDisposisi;
+  riwayatStatus: { status: StatusDisposisi, tanggal: string, oleh?: User }[];
+}
+
+interface SuratBase {
+  id: string;
+  nomorSurat: string;
+  tanggal: string; // Tanggal surat
   perihal: string;
-  isi?: string;
-  pengirim: string; // or instansi
-  tujuan: string; // or instansi
-  fileUrl: string; // mock URL
-  isArchived: boolean;
+  kategoriId: string;
   sifat: SifatSurat;
-  unitKerjaId: string;
-  tujuanUnitKerjaId?: string; // For internal mail
+  fileUrl: string;
+  isArchived: boolean;
   folderId?: string;
-  kategoriId?: string;
-  jenisSurat?: JenisSurat;
-  masalahUtamaId?: string;
-  klasifikasiId?: string; // For auto-numbering
-  relatedSuratIds?: string[];
+  tipe: TipeSurat;
+  unitKerjaId: string; // Unit kerja yang membuat/menerima surat ini
 }
 
-export interface SuratMasuk extends Surat {
+export interface SuratMasuk extends SuratBase {
   tipe: TipeSurat.MASUK;
-  disposisi: Disposisi[];
+  pengirim: string;
   tanggalDiterima: string;
+  disposisi: Disposisi[];
+  isiRingkasAI?: string;
 }
 
-export interface SuratKeluar extends Surat {
+export interface SuratKeluar extends SuratBase {
   tipe: TipeSurat.KELUAR;
-  tandaTangan?: TandaTangan;
+  tujuan: string; // Nama tujuan eksternal
+  tujuanUnitKerjaId?: string; // ID tujuan internal jika ada
+  pembuat: User;
+  jenisSuratKeluar: 'Biasa' | 'SK';
+  masalahUtamaId: string;
+  klasifikasiId: string;
+  ringkasan: string;
+  tandaTangan?: string; // base64 data URL for signature image or QR code
+  suratAsliId?: string; // ID of the SuratMasuk being replied to
 }
 
 export type AnySurat = SuratMasuk | SuratKeluar;
@@ -168,15 +130,45 @@ export interface FolderArsip {
 export interface Notifikasi {
   id: string;
   suratId: string;
-  userId: string;
   pesan: string;
   tanggal: string;
   isRead: boolean;
 }
 
 export interface ActivityLog {
-  id:string;
-  timestamp: string;
+  id: string;
   user: string;
   action: string;
+  timestamp: string;
+}
+
+export interface KopSuratSettings {
+    logoUrl: string;
+    namaKementerian: string;
+    namaDirektorat: string;
+}
+
+export interface BrandingSettings {
+  appLogoUrl: string;
+  loginLogo1Url: string;
+  loginLogo2Url: string;
+  loginLogo3Url: string;
+}
+
+export interface AppSettings {
+    notifications: {
+        disposisiBaru: boolean;
+        suratMasukBaru: boolean;
+        statusDisposisiUpdate: boolean;
+    };
+    theme: {
+        darkMode: boolean;
+    };
+    signatureMethod: SignatureMethod;
+}
+
+export interface PenomoranSettings {
+    biasa: string;
+    sk: string;
+    resetSequence: 'yearly' | 'monthly';
 }

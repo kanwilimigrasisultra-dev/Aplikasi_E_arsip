@@ -40,22 +40,22 @@ const Dashboard: React.FC<DashboardProps> = ({ suratMasukCount, suratKeluarCount
             {/* Stat Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard 
-                    icon={<InboxIcon className="w-6 h-6 text-white" />} 
+                    icon={<InboxIcon className="w-6 h-6 text-blue-600" />} 
                     title="Surat Masuk Aktif" 
                     value={suratMasukCount} 
-                    color="bg-sky-500"
+                    color="bg-blue-100"
                 />
                 <StatCard 
-                    icon={<OutboxIcon className="w-6 h-6 text-white" />} 
+                    icon={<OutboxIcon className="w-6 h-6 text-amber-600" />} 
                     title="Surat Keluar Aktif" 
                     value={suratKeluarCount} 
-                    color="bg-amber-500"
+                    color="bg-amber-100"
                 />
                 <StatCard 
-                    icon={<ArchiveIcon className="w-6 h-6 text-white" />} 
+                    icon={<ArchiveIcon className="w-6 h-6 text-emerald-600" />} 
                     title="Total Arsip Surat" 
                     value={archivedCount} 
-                    color="bg-emerald-500"
+                    color="bg-emerald-100"
                 />
             </div>
 
