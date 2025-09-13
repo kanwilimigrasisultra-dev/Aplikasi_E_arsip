@@ -84,7 +84,7 @@ function App() {
 
     const handleLogout = useCallback(() => setCurrentUser(null), []);
     
-    const handleSuratSubmit = useCallback((suratData: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>) => {
+    const handleSuratSubmit = useCallback((suratData: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>) => {
         const commonData = {
             id: `${suratData.tipe === TipeSurat.MASUK ? 'sm' : 'sk'}-${Date.now()}`,
             isArchived: false,
@@ -102,10 +102,11 @@ function App() {
                 disposisi: [],
             };
         } else { 
-            const typedSuratData = suratData as Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>;
+            const typedSuratData = suratData as Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>;
             newSurat = {
                 ...typedSuratData,
                 ...commonData,
+                status: 'Draf',
             };
         }
 
@@ -167,7 +168,7 @@ function App() {
     const handleTambahTandaTangan = useCallback((suratId: string, signatureDataUrl?: string) => {
         setAllSurat(prev => prev.map(s => {
             if (s.id === suratId && s.tipe === TipeSurat.KELUAR) {
-                return { ...s, tandaTangan: signatureDataUrl || 'SIGNED_WITH_QR' };
+                return { ...s, tandaTangan: signatureDataUrl || 'SIGNED_WITH_QR', status: 'Terkirim' };
             }
             return s;
         }));
@@ -332,6 +333,10 @@ function App() {
                 <main className="flex-1 overflow-y-auto p-6">
                     {renderPage()}
                 </main>
+                {/* Footer */}
+                <footer className="bg-white border-t border-slate-200 p-4 text-center text-xs text-slate-500 mt-auto">
+                    &copy; 2025 STAR E-ARSIM SULTRA. All rights reserved by acn@tikim_sultra.
+                </footer>
             </div>
         </div>
     );

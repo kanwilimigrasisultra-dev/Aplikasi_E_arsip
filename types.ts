@@ -118,6 +118,7 @@ export interface SuratKeluar extends SuratBase {
   ringkasan: string;
   tandaTangan?: string; // base64 data URL for signature image or QR code
   suratAsliId?: string; // ID of the SuratMasuk being replied to
+  status: 'Draf' | 'Terkirim';
 }
 
 export type AnySurat = SuratMasuk | SuratKeluar;

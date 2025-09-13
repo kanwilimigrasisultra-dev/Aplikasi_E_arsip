@@ -32,7 +32,7 @@ interface SuratKeluarProps {
     appSettings: AppSettings;
     penomoranSettings: PenomoranSettings;
     folders: FolderArsip[];
-    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>) => void;
+    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>) => void;
     onUpdate: (surat: AnySurat) => void;
     onArchive: (suratId: string, folderId: string) => void;
     onTambahTandaTangan: (suratId: string, signatureDataUrl?: string) => void;
@@ -132,11 +132,11 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
         setUnitKerjaFilter('');
     };
     
-    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId'> | AnySurat) => {
+    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status'> | AnySurat) => {
         if ('id' in suratData) {
             props.onUpdate(suratData as AnySurat);
         } else {
-            props.onSubmit(suratData as Omit<TSuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi'>);
+            props.onSubmit(suratData as Omit<TSuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status'>);
         }
         handleCloseFormModal();
     };
@@ -149,6 +149,14 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
             [SifatSurat.RAHASIA]: 'bg-red-100 text-red-800',
         };
         return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colorMap[sifat]}`}>{sifat}</span>;
+    }
+
+    const getStatusBadge = (status: 'Draf' | 'Terkirim') => {
+        const colorMap = {
+            'Draf': 'bg-amber-100 text-amber-800',
+            'Terkirim': 'bg-emerald-100 text-emerald-800',
+        };
+        return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colorMap[status]}`}>{status}</span>;
     }
 
     return (
@@ -218,7 +226,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                                 <th scope="col" className="px-6 py-3">Tujuan</th>
                                 <th scope="col" className="px-6 py-3">Tanggal Surat</th>
                                 <th scope="col" className="px-6 py-3">Sifat</th>
-                                <th scope="col" className="px-6 py-3">Status TTD</th>
+                                <th scope="col" className="px-6 py-3">Status</th>
                                 <th scope="col" className="px-6 py-3 text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -231,10 +239,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                                     <td className="px-6 py-4">{new Date(surat.tanggal).toLocaleDateString()}</td>
                                     <td className="px-6 py-4">{getSifatBadge(surat.sifat)}</td>
                                     <td className="px-6 py-4">
-                                        {surat.tandaTangan ? 
-                                            <span className="text-emerald-600">Ditandatangani</span> : 
-                                            <span className="text-amber-600">Belum</span>
-                                        }
+                                        {getStatusBadge(surat.status)}
                                     </td>
                                     <td className="px-6 py-4 text-center space-x-2">
                                         <button onClick={() => handleOpenDetail(surat)} className="font-medium text-blue-600 hover:text-blue-800">Detail</button>

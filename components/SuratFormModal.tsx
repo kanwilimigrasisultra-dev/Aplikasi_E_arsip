@@ -259,7 +259,7 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
             };
             onSubmit(newSurat);
         } else { // KELUAR
-            const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'tandaTangan'> = {
+            const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'tandaTangan' | 'status'> = {
                 nomorSurat: formData.nomorSurat || '',
                 tanggal: formData.tanggal || '',
                 perihal: formData.perihal || '',
