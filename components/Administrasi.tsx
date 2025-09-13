@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { User, UnitKerja, KategoriSurat, ActivityLog, UserRole, KlasifikasiSurat, MasalahUtama } from '../types';
+import { User, UnitKerja, KategoriSurat, ActivityLog, UserRole, KlasifikasiSurat, MasalahUtama, KebijakanRetensi } from '../types';
 import ManajemenPengguna from './ManajemenPengguna';
 import ManajemenKategori from './ManajemenKategori';
 import ManajemenUnitKerja from './ManajemenUnitKerja';
 import LogAktivitas from './LogAktivitas';
 import ManajemenKlasifikasi from './ManajemenKlasifikasi';
 import ManajemenMasalahUtama from './ManajemenMasalahUtama';
+import ManajemenRetensi from './ManajemenRetensi';
 
 interface AdministrasiProps {
     users: User[];
@@ -13,11 +14,12 @@ interface AdministrasiProps {
     kategoriList: KategoriSurat[];
     masalahUtamaList: MasalahUtama[];
     klasifikasiList: KlasifikasiSurat[];
+    kebijakanRetensiList: KebijakanRetensi[];
     activityLogs: ActivityLog[];
     currentUser: User;
 }
 
-type AdminTab = 'pengguna' | 'unit' | 'kategori' | 'masalah' | 'klasifikasi' | 'log';
+type AdminTab = 'pengguna' | 'unit' | 'kategori' | 'masalah' | 'klasifikasi' | 'retensi' | 'log';
 
 const Administrasi: React.FC<AdministrasiProps> = (props) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('pengguna');
@@ -91,6 +93,17 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
                         onDeleteKlasifikasi={(klasifikasiId) => alert(`Delete classification: ${klasifikasiId}`)}
                     />
                 );
+            case 'retensi':
+                if (!isSuperAdmin) return null;
+                return (
+                    <ManajemenRetensi
+                        kebijakanList={props.kebijakanRetensiList}
+                        kategoriList={props.kategoriList}
+                        onCreate={(item) => alert(`Create policy for category: ${item.kategoriId}`)}
+                        onUpdate={(item) => alert(`Update policy: ${item.id}`)}
+                        onDelete={(id) => alert(`Delete policy: ${id}`)}
+                    />
+                );
             case 'log':
                 return <LogAktivitas activityLogs={visibleLogs} />;
             default:
@@ -124,6 +137,7 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
                             <TabButton tabId="kategori" label="Manajemen Kategori" />
                             <TabButton tabId="masalah" label="Manajemen Masalah Utama" />
                             <TabButton tabId="klasifikasi" label="Manajemen Klasifikasi" />
+                            <TabButton tabId="retensi" label="Manajemen Retensi" />
                         </>
                     )}
                     <TabButton tabId="log" label="Log Aktivitas" />

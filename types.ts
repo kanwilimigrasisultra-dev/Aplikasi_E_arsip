@@ -172,3 +172,11 @@ export interface PenomoranSettings {
     sk: string;
     resetSequence: 'yearly' | 'monthly';
 }
+
+export interface KebijakanRetensi {
+    id: string;
+    kategoriId: string;
+    masaRetensiAktif: number; // In years
+    masaRetensiInaktif: number; // In years
+    tindakanFinal: 'Musnahkan' | 'Permanen';
+}

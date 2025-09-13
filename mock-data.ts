@@ -1,7 +1,7 @@
 import {
   User, UserRole, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
   SuratMasuk, SuratKeluar, TipeSurat, SifatSurat, Disposisi, SifatDisposisi, StatusDisposisi,
-  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings
+  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, KebijakanRetensi
 } from './types';
 
 // IDs for consistency
@@ -124,3 +124,8 @@ export const mockBrandingSettings: BrandingSettings = {
     loginLogo2Url: '',
     loginLogo3Url: '',
 };
+
+export const mockKebijakanRetensi: KebijakanRetensi[] = [
+    { id: 'ret-1', kategoriId: kategoriKeuanganId, masaRetensiAktif: 2, masaRetensiInaktif: 8, tindakanFinal: 'Permanen' },
+    { id: 'ret-2', kategoriId: kategoriUmumId, masaRetensiAktif: 1, masaRetensiInaktif: 4, tindakanFinal: 'Musnahkan' },
+];

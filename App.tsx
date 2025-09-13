@@ -4,14 +4,14 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
     mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockSuratMasuk, mockSuratKeluar, mockFolders, mockNotifikasi, mockActivityLogs,
-    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings
+    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi
 } from './mock-data';
 
 // --- TYPE IMPORTS ---
 import {
     User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
     SuratMasuk, SuratKeluar, AnySurat, FolderArsip, Notifikasi, ActivityLog,
-    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings
+    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings, KebijakanRetensi
 } from './types';
 
 // --- COMPONENT IMPORTS ---
@@ -42,6 +42,7 @@ function App() {
     const [allUnitKerja, setAllUnitKerja] = useState<UnitKerja[]>(mockUnitKerja);
     const [allMasalahUtama, setAllMasalahUtama] = useState<MasalahUtama[]>(mockMasalahUtama);
     const [allKlasifikasi, setAllKlasifikasi] = useState<KlasifikasiSurat[]>(mockKlasifikasi);
+    const [allKebijakanRetensi, setAllKebijakanRetensi] = useState<KebijakanRetensi[]>(mockKebijakanRetensi);
     const [notifications, setNotifications] = useState<Notifikasi[]>(mockNotifikasi);
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(mockActivityLogs);
     const [kopSuratSettings, setKopSuratSettings] = useState<KopSuratSettings>(mockKopSuratSettings);
@@ -245,7 +246,7 @@ function App() {
             case 'laporan':
                 return <Laporan allSurat={allSurat} allKategori={allKategori} kopSuratSettings={kopSuratSettings} unitKerjaList={allUnitKerja} currentUser={currentUser}/>;
             case 'administrasi':
-                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} activityLogs={activityLogs} currentUser={currentUser} />;
+                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} kebijakanRetensiList={allKebijakanRetensi} activityLogs={activityLogs} currentUser={currentUser} />;
             case 'pengaturan':
                 return <Pengaturan settings={appSettings} onSettingsChange={setAppSettings} currentUser={currentUser} kopSuratSettings={kopSuratSettings} onUpdateKopSurat={setKopSuratSettings} penomoranSettings={penomoranSettings} onUpdatePenomoran={setPenomoranSettings} brandingSettings={brandingSettings} onUpdateBranding={handleUpdateBranding} />;
             default:
