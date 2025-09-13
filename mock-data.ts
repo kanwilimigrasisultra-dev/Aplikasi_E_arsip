@@ -1,7 +1,7 @@
 import {
   User, UserRole, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
   SuratMasuk, SuratKeluar, TipeSurat, SifatSurat, Disposisi, SifatDisposisi, StatusDisposisi,
-  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, KebijakanRetensi, ApprovalStep, TemplateSurat
+  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, KebijakanRetensi, ApprovalStep, TemplateSurat, Pengumuman
 } from './types';
 
 // IDs for consistency
@@ -13,6 +13,7 @@ const userAdminId = 'user-2';
 const userStaf1Id = 'user-3';
 const userStaf2Id = 'user-4';
 const userManajerialId = 'user-6';
+const userSuperAdminId = 'user-5';
 const kategoriUmumId = 'kategori-1';
 const kategoriKeuanganId = 'kategori-2';
 const kategoriSDMId = 'kategori-3';
@@ -29,7 +30,7 @@ export const mockUsers: User[] = [
   { id: userAdminId, nama: 'Citra Lestari', email: 'citra.l@example.com', jabatan: 'Admin Wilayah', role: UserRole.ADMIN, unitKerjaId: unitPusatId },
   { id: userStaf1Id, nama: 'Adi Nugroho', email: 'adi.n@example.com', jabatan: 'Staf Umum', role: UserRole.STAF, unitKerjaId: unitCabang1Id },
   { id: userStaf2Id, nama: 'Dewi Anggraini', email: 'dewi.a@example.com', jabatan: 'Staf Keuangan', role: UserRole.STAF, unitKerjaId: unitCabang2Id },
-  { id: 'user-5', nama: 'Eka Wijaya', email: 'eka.w@example.com', jabatan: 'Super Admin', role: UserRole.SUPER_ADMIN, unitKerjaId: unitPusatId },
+  { id: userSuperAdminId, nama: 'Eka Wijaya', email: 'eka.w@example.com', jabatan: 'Super Admin', role: UserRole.SUPER_ADMIN, unitKerjaId: unitPusatId },
   { id: userManajerialId, nama: 'Rina Hartono', email: 'rina.h@example.com', jabatan: 'Manajer Umum', role: UserRole.MANAJERIAL, unitKerjaId: unitPusatId },
 ];
 
@@ -101,6 +102,27 @@ export const mockActivityLogs: ActivityLog[] = [
   { id: 'log-1', user: 'Citra Lestari', action: 'Membuat surat keluar "Instruksi Persiapan Audit Internal"', timestamp: new Date().toISOString() },
   { id: 'log-2', user: 'Dr. Budi Santoso', action: 'Memberikan disposisi pada surat "Undangan Rapat Koordinasi Nasional"', timestamp: new Date(Date.now() - 3600000).toISOString() },
   { id: 'log-3', user: 'Adi Nugroho', action: 'Mengarsipkan surat "Penawaran Produk ATK"', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+];
+
+export const mockPengumuman: Pengumuman[] = [
+    {
+        id: 'pengumuman-1',
+        teks: 'Akan diadakan maintenance sistem pada hari Sabtu pukul 22:00. Seluruh pengguna diharapkan untuk menyimpan pekerjaannya sebelum waktu tersebut.',
+        tanggalMulai: new Date().toISOString().split('T')[0],
+        tanggalSelesai: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0], // Aktif selama 3 hari
+        isActive: true,
+        pembuat: mockUsers.find(u => u.id === userSuperAdminId)!,
+        timestamp: new Date().toISOString(),
+    },
+    {
+        id: 'pengumuman-2',
+        teks: 'Selamat Hari Raya Idul Fitri, mohon maaf lahir dan batin.',
+        tanggalMulai: '2023-04-20',
+        tanggalSelesai: '2023-04-25',
+        isActive: true,
+        pembuat: mockUsers.find(u => u.id === userAdminId)!,
+        timestamp: '2023-04-20T10:00:00Z',
+    }
 ];
 
 export const mockKopSuratSettings: KopSuratSettings = {

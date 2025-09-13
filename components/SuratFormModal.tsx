@@ -10,7 +10,8 @@ import { PaperClipIcon, SparklesIcon, XIcon } from './icons';
 interface SuratFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain'> | AnySurat) => void;
+    // FIX: Added 'komentar' to Omit to align with parent component logic where it's auto-generated.
+    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> | AnySurat) => void;
     tipe: TipeSurat;
     kategoriList: KategoriSurat[];
     masalahUtamaList?: MasalahUtama[];
@@ -65,6 +66,8 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [poinBalasan, setPoinBalasan] = useState('');
+    // Add state for selected template
+    const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
     const filteredKlasifikasi = useMemo(() => {
         if (!props.klasifikasiList || !formData.masalahUtamaId) return [];
@@ -93,6 +96,8 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                 setAttachments([]);
             }
             setPoinBalasan('');
+            // Reset template selection when modal opens
+            setSelectedTemplateId('');
         }
     }, [isOpen, suratToEdit, initialData]);
 
@@ -103,6 +108,31 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
 
         if (name === 'masalahUtamaId') {
             setFormData(prev => ({ ...prev, klasifikasiId: '' }));
+        }
+    };
+    
+    // Add handler for template selection change
+    const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const templateId = e.target.value;
+        setSelectedTemplateId(templateId);
+        if (templateId) {
+            const template = props.allTemplates?.find(t => t.id === templateId);
+            if (template) {
+                setFormData(prev => ({
+                    ...prev,
+                    perihal: template.perihal,
+                    kategoriId: template.kategoriId,
+                    sifat: template.sifat,
+                    jenisSuratKeluar: template.jenisSuratKeluar,
+                    masalahUtamaId: template.masalahUtamaId,
+                    ringkasan: template.ringkasan,
+                    klasifikasiId: '', // Reset klasifikasi as it depends on masalah utama
+                }));
+            }
+        } else {
+            // Reset to initial state if "No Template" is selected, but keep initialData if present
+            const baseState = getInitialState();
+            setFormData({ ...baseState, ...initialData });
         }
     };
 
@@ -286,8 +316,8 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                 };
                 onSubmit(newSurat);
             } else { // KELUAR
-                // FIX: Add 'komentar' to Omit type to match expected type by parent component
-                const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'tandaTangan' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> = {
+                // FIX: Removed 'tandaTangan' from Omit as it's an optional property not provided by the form, resolving a type error.
+                const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> = {
                     nomorSurat: fullData.nomorSurat || '',
                     tanggal: fullData.tanggal || '',
                     perihal: fullData.perihal || '',
@@ -317,6 +347,17 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title} size="2xl">
             <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Add Template Selector */}
+                {tipe === TipeSurat.KELUAR && props.allTemplates && !isEditMode && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700">Gunakan Template</label>
+                        <select value={selectedTemplateId} onChange={handleTemplateChange} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                            <option value="">-- Tanpa Template --</option>
+                            {props.allTemplates.map(t => <option key={t.id} value={t.id}>{t.nama}</option>)}
+                        </select>
+                    </div>
+                )}
+
                 {tipe === TipeSurat.MASUK && (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <label className="block text-sm font-medium text-slate-700">Isi Ringkas Surat (untuk Bantuan AI)</label>

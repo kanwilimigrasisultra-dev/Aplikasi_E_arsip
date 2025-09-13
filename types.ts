@@ -192,6 +192,16 @@ export interface ActivityLog {
   timestamp: string;
 }
 
+export interface Pengumuman {
+    id: string;
+    teks: string;
+    tanggalMulai: string;
+    tanggalSelesai: string;
+    isActive: boolean;
+    pembuat: User;
+    timestamp: string;
+}
+
 export interface KopSuratSettings {
     logoUrl: string;
     namaKementerian: string;

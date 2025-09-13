@@ -229,6 +229,8 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
                         {isSuratMasuk && <TabButton label="Disposisi" isActive={activeTab === 'disposisi'} onClick={() => setActiveTab('disposisi')} />}
                         {isSuratKeluar && <TabButton label={`Riwayat & Persetujuan (v${surat.version})`} isActive={activeTab === 'approval'} onClick={() => setActiveTab('approval')} />}
                         {isSuratKeluar && <TabButton label="Tanda Tangan" isActive={activeTab === 'ttd'} onClick={() => setActiveTab('ttd')} disabled={surat.status !== 'Disetujui'} />}
+                        {/* Add Komentar Tab */}
+                        <TabButton label="Komentar" isActive={activeTab === 'komentar'} onClick={() => setActiveTab('komentar')} />
                     </nav>
                 </div>
                 
@@ -237,6 +239,8 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
                     {activeTab === 'disposisi' && renderDisposisi()}
                     {activeTab === 'approval' && renderApprovalAndHistory()}
                     {activeTab === 'ttd' && renderTandaTangan()}
+                    {/* Render Komentar Section */}
+                    {activeTab === 'komentar' && <KomentarSection {...props} />}
                 </div>
             </div>
             {/* FIX: Pass currentUser prop to SuratPrintModal */}
@@ -428,6 +432,61 @@ const ApprovalAndHistorySection: React.FC<SuratDetailModalProps> = ({ surat, cur
         </div>
     )
 }
+
+// Add Komentar Section
+const KomentarSection: React.FC<SuratDetailModalProps> = ({ surat, onAddKomentar, currentUser }) => {
+    const [teks, setTeks] = useState('');
+    // Sort comments, newest first
+    const sortedKomentar = [...surat.komentar].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (teks.trim()) {
+            onAddKomentar(surat.id, teks.trim());
+            setTeks('');
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <h4 className="font-semibold text-slate-800">Komentar & Diskusi Internal</h4>
+            <form onSubmit={handleSubmit} className="space-y-2">
+                <div>
+                    <label htmlFor="komentar-teks" className="sr-only">Tambah Komentar</label>
+                    <textarea
+                        id="komentar-teks"
+                        value={teks}
+                        onChange={e => setTeks(e.target.value)}
+                        rows={3}
+                        placeholder="Tulis komentar atau pertanyaan di sini..."
+                        className="block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    />
+                </div>
+                <div className="text-right">
+                    <button type="submit" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-700 hover:bg-slate-800">
+                        Kirim Komentar
+                    </button>
+                </div>
+            </form>
+            <div className="space-y-4 pt-4 border-t max-h-64 overflow-y-auto pr-2">
+                {sortedKomentar.length > 0 ? sortedKomentar.map(k => (
+                    <div key={k.id} className="flex items-start space-x-3">
+                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center">
+                            <span className="text-slate-600 font-bold">{k.user.nama.charAt(0)}</span>
+                        </div>
+                        <div className="flex-1 bg-slate-50 p-3 rounded-lg">
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm font-semibold text-slate-800">{k.user.nama}</p>
+                                <p className="text-xs text-slate-500">{new Date(k.timestamp).toLocaleString('id-ID')}</p>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-700 whitespace-pre-wrap">{k.teks}</p>
+                        </div>
+                    </div>
+                )) : <p className="text-center text-sm text-slate-500 p-4">Belum ada komentar.</p>}
+            </div>
+        </div>
+    );
+};
 
 const InfoItem: React.FC<{ label: string; value: string }> = ({ label, value }) => (
     <div>

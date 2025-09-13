@@ -4,14 +4,14 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
     mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockSuratMasuk, mockSuratKeluar, mockFolders, mockNotifikasi, mockActivityLogs,
-    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates
+    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman
 } from './mock-data';
 
 // --- TYPE IMPORTS ---
 import {
     User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
     SuratMasuk, SuratKeluar, AnySurat, FolderArsip, Notifikasi, ActivityLog,
-    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings, KebijakanRetensi, Attachment, ApprovalStep, TemplateSurat, Delegasi, Komentar
+    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings, KebijakanRetensi, Attachment, ApprovalStep, TemplateSurat, Delegasi, Komentar, Pengumuman
 } from './types';
 
 // --- COMPONENT IMPORTS ---
@@ -26,6 +26,7 @@ import PencarianCerdas from './components/PencarianCerdas';
 import VerifikasiDokumen from './components/VerifikasiDokumen';
 import Laporan from './components/Laporan';
 import NotificationBell from './components/NotificationBell';
+import AnnouncementBanner from './components/AnnouncementBanner';
 import { ArchiveIcon, CogIcon, InboxIcon, OutboxIcon, SearchIcon, ShieldCheckIcon, UsersIcon, SparklesIcon, ClipboardListIcon } from './components/icons';
 import { HomeIcon } from '@heroicons/react/24/outline';
 
@@ -40,6 +41,7 @@ function App() {
     const [allFolders, setAllFolders] = useState<FolderArsip[]>(mockFolders);
     const [allKategori, setAllKategori] = useState<KategoriSurat[]>(mockKategori);
     const [allTemplates, setAllTemplates] = useState<TemplateSurat[]>(mockTemplates);
+    const [allPengumuman, setAllPengumuman] = useState<Pengumuman[]>(mockPengumuman);
     const [allUnitKerja, setAllUnitKerja] = useState<UnitKerja[]>(mockUnitKerja);
     const [allMasalahUtama, setAllMasalahUtama] = useState<MasalahUtama[]>(mockMasalahUtama);
     const [allKlasifikasi, setAllKlasifikasi] = useState<KlasifikasiSurat[]>(mockKlasifikasi);
@@ -59,6 +61,16 @@ function App() {
     const activeSuratMasuk = useMemo(() => allSurat.filter(s => s.tipe === TipeSurat.MASUK && !s.isArchived) as SuratMasuk[], [allSurat]);
     const activeSuratKeluar = useMemo(() => allSurat.filter(s => s.tipe === TipeSurat.KELUAR && !s.isArchived) as SuratKeluar[], [allSurat]);
     const archivedSurat = useMemo(() => allSurat.filter(s => s.isArchived), [allSurat]);
+    const activePengumuman = useMemo(() => {
+        const now = new Date();
+        return allPengumuman.filter(p => {
+            const start = new Date(p.tanggalMulai);
+            const end = new Date(p.tanggalSelesai);
+            end.setHours(23, 59, 59, 999); // Ensure end date is inclusive
+            return p.isActive && now >= start && now <= end;
+        });
+    }, [allPengumuman]);
+
 
     // --- LOGGING HELPER ---
     const logAction = useCallback((action: string) => {
@@ -332,6 +344,28 @@ function App() {
         setAllUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, delegasi: newDelegasi } : u));
         logAction(`Mendelegasikan wewenang kepada ${kepadaUser.nama} dari ${tanggalMulai} hingga ${tanggalSelesai}`);
     }, [currentUser, allUsers, logAction]);
+    
+    const handlePengumumanSubmit = useCallback((pengumuman: Omit<Pengumuman, 'id' | 'pembuat' | 'timestamp' | 'isActive'> | Pengumuman) => {
+        if ('id' in pengumuman) {
+            setAllPengumuman(prev => prev.map(p => p.id === pengumuman.id ? { ...p, ...pengumuman, timestamp: new Date().toISOString() } : p));
+            logAction(`Memperbarui pengumuman: "${pengumuman.teks.substring(0, 30)}..."`);
+        } else {
+            const newPengumuman: Pengumuman = { 
+                ...pengumuman, 
+                id: `pengumuman-${Date.now()}`,
+                pembuat: currentUser!,
+                timestamp: new Date().toISOString(),
+                isActive: true,
+            };
+            setAllPengumuman(prev => [newPengumuman, ...prev]);
+            logAction(`Membuat pengumuman baru: "${pengumuman.teks.substring(0, 30)}..."`);
+        }
+    }, [currentUser, logAction]);
+
+    const handlePengumumanDelete = useCallback((pengumumanId: string) => {
+        setAllPengumuman(prev => prev.filter(p => p.id !== pengumumanId));
+        logAction(`Menghapus pengumuman dengan ID: ${pengumumanId}`);
+    }, [logAction]);
 
     // --- RENDER LOGIC ---
     if (!currentUser) {
@@ -395,7 +429,7 @@ function App() {
             case 'laporan':
                 return <Laporan allSurat={allSurat} allKategori={allKategori} kopSuratSettings={kopSuratSettings} unitKerjaList={allUnitKerja} currentUser={currentUser}/>;
             case 'administrasi':
-                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} kebijakanRetensiList={allKebijakanRetensi} templateList={allTemplates} onTemplateSubmit={handleTemplateSubmit} activityLogs={activityLogs} currentUser={currentUser} />;
+                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} kebijakanRetensiList={allKebijakanRetensi} templateList={allTemplates} onTemplateSubmit={handleTemplateSubmit} allPengumuman={allPengumuman} onPengumumanSubmit={handlePengumumanSubmit} onPengumumanDelete={handlePengumumanDelete} activityLogs={activityLogs} currentUser={currentUser} />;
             case 'pengaturan':
                 return <Pengaturan settings={appSettings} onSettingsChange={setAppSettings} currentUser={currentUser} allUsers={allUsers} onSetDelegasi={handleSetDelegasi} kopSuratSettings={kopSuratSettings} onUpdateKopSurat={setKopSuratSettings} penomoranSettings={penomoranSettings} onUpdatePenomoran={setPenomoranSettings} brandingSettings={brandingSettings} onUpdateBranding={handleUpdateBranding} />;
             default:
@@ -456,8 +490,9 @@ function App() {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
+                <AnnouncementBanner pengumumanList={activePengumuman} />
                 {/* Header */}
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
                     <h2 className="text-xl font-semibold text-slate-800">{pageTitles[activePage]}</h2>
                     <div className="flex items-center space-x-4">
                         <NotificationBell 
@@ -482,7 +517,7 @@ function App() {
                     {renderPage()}
                 </main>
                 {/* Footer */}
-                <footer className="bg-white border-t border-slate-200 p-4 text-center text-xs text-slate-500 mt-auto">
+                <footer className="bg-white border-t border-slate-200 p-4 text-center text-xs text-slate-500 mt-auto flex-shrink-0">
                     &copy; 2025 STAR E-ARSIM SULTRA. All rights reserved by acn@tikim_sultra.
                 </footer>
             </div>
