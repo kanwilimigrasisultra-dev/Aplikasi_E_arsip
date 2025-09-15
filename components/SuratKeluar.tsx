@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk, ApprovalStep, TemplateSurat, Tugas } from '../types';
 import { PlusIcon, SearchIcon, RefreshIcon, ArchiveIcon } from './icons';
-import SuratFormModal from './SuratFormModal';
+// FIX: Changed import to be a named import.
+import { SuratFormModal } from './SuratFormModal';
 import SuratDetailModal from './SuratDetailModal';
 import PilihFolderArsipModal from './PilihFolderArsipModal';
 

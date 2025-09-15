@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pengumuman, User } from '../types';
-import { PlusIcon, PencilIcon, TrashIcon } from './icons';
-import { MegaphoneIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, MegaphoneIcon } from './icons';
 import Modal from './Modal';
 
 interface ManajemenPengumumanProps {

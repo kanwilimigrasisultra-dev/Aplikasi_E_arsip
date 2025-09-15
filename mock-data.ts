@@ -140,7 +140,8 @@ export const mockPengumuman: Pengumuman[] = [
 export const mockKopSuratSettings: KopSuratSettings = {
     logoUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSI1MCIgeT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI0MCIgZmlsbD0iIzQ3NTU2OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC13ZWlnaHQ9ImJvbGQiPkVBPC90ZXh0Pjwvc3ZnPg==',
     namaKementerian: 'KEMENTERIAN FIKSI INDONESIA',
-    namaDirektorat: 'DIREKTORAT JENDERAL PERSURATAN DIGITAL'
+    namaDirektorat: 'DIREKTORAT JENDERAL PERSURATAN DIGITAL',
+    sematkanLogoDiQRCode: true,
 };
 
 export const mockAppSettings: AppSettings = {

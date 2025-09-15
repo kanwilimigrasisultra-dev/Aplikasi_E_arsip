@@ -188,6 +188,7 @@ export interface SuratKeluar extends SuratBase {
   version: number;
   history: Partial<SuratKeluar>[];
   approvalChain: ApprovalStep[];
+  tembusan?: string[];
 }
 
 export interface NotaDinas extends SuratBase {
@@ -234,6 +235,7 @@ export interface KopSuratSettings {
     logoUrl: string;
     namaKementerian: string;
     namaDirektorat: string;
+    sematkanLogoDiQRCode: boolean;
 }
 
 export interface BrandingSettings {

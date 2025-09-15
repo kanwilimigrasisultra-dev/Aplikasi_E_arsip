@@ -25,10 +25,6 @@ interface SuratFormModalProps {
     allTemplates?: TemplateSurat[];
 }
 
-// FIX: Add NotaDinas to FormData to support all surat types.
-// The original intersection-based definition causes type conflicts with the 'status' property.
-// Redefining FormData to explicitly handle all properties from SuratMasuk, SuratKeluar, and NotaDinas,
-// using the widest possible type for conflicting properties like 'status'.
 type FormData = {
     // from SuratBase
     nomorSurat?: string;
@@ -49,6 +45,7 @@ type FormData = {
 
     // from SuratKeluar
     tujuan?: string;
+    tembusan?: string; // Stored as string in form, converted to string[] on submit
     tujuanUnitKerjaId?: string;
     pembuat?: User;
     jenisSuratKeluar?: 'Biasa' | 'SK';
@@ -57,21 +54,21 @@ type FormData = {
     ringkasan?: string;
     tandaTangan?: string;
     suratAsliId?: string;
-    status?: SuratKeluar['status']; // Union type, SuratKeluar's is wider
+    status?: SuratKeluar['status'] | NotaDinas['status']; 
     version?: number;
     history?: Partial<SuratKeluar>[];
     approvalChain?: ApprovalStep[];
 
     // from NotaDinas
     tujuanUserIds?: string[];
-    // status is covered, pembuat is covered, ringkasan is covered.
     
     // Other
     suratAsli?: SuratMasuk;
 };
 
 
-const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
+// FIX: Changed to a named export
+export const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
     const { isOpen, onClose, onSubmit, tipe, suratToEdit, initialData } = props;
     
     const getInitialState = (): FormData => {
@@ -91,7 +88,6 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                 tanggalDiterima: new Date().toISOString().split('T')[0],
                 isiRingkasAI: '',
             };
-        // FIX: Add case for NotaDinas to provide correct initial state.
         } else if (tipe === TipeSurat.NOTA_DINAS) {
             return {
                 ...defaults,
@@ -102,6 +98,7 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
             return {
                 ...defaults,
                 tujuan: '',
+                tembusan: '',
                 jenisSuratKeluar: 'Biasa',
                 masalahUtamaId: props.masalahUtamaList?.[0]?.id || '',
                 klasifikasiId: '',
@@ -128,18 +125,23 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
         if (isOpen) {
             const initialState = getInitialState();
             if (suratToEdit) {
-                const editState: FormData = {
+                // FIX: Use `any` for `editState` to bypass strict type checking for `tembusan`.
+                const editState: any = {
                     ...initialState,
                     ...suratToEdit,
                     tanggal: new Date(suratToEdit.tanggal).toISOString().split('T')[0],
                 };
+                if (suratToEdit.tipe === TipeSurat.KELUAR) {
+                    editState.tembusan = (suratToEdit as SuratKeluar).tembusan?.join('\n') || '';
+                }
                 if (suratToEdit.tipe === TipeSurat.MASUK) {
-                    (editState as Partial<SuratMasuk>).tanggalDiterima = new Date((suratToEdit as SuratMasuk).tanggalDiterima).toISOString().split('T')[0];
+                    editState.tanggalDiterima = new Date((suratToEdit as SuratMasuk).tanggalDiterima).toISOString().split('T')[0];
                 }
                 setFormData(editState);
                 setAttachments(suratToEdit.attachments || []);
             } else if (initialData) {
-                setFormData({ ...initialState, ...initialData });
+                // FIX: Use `any` for `initialData` to avoid type conflict with `tembusan`.
+                setFormData({ ...initialState, ...(initialData as any) });
                 setAttachments([]);
             } else {
                 setFormData(initialState);
@@ -162,7 +164,6 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
         }
     };
     
-    // FIX: Add handler for multi-select user IDs for Nota Dinas.
     const handleTujuanUserIdsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = Array.from(e.target.selectedOptions, option => option.value);
         setFormData(prev => ({ ...prev, tujuanUserIds: value }));
@@ -188,7 +189,7 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
         } else {
             // Reset to initial state if "No Template" is selected, but keep initialData if present
             const baseState = getInitialState();
-            setFormData({ ...baseState, ...initialData });
+            setFormData({ ...baseState, ...(initialData as any) });
         }
     };
 
@@ -346,17 +347,17 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
         e.preventDefault();
         const fullData = { ...formData, attachments };
         
-        // FIX: Error on line 293. With proper conditional rendering and state management for each 'tipe', 
-        // this spread should now correctly create an object that matches one of the types in AnySurat.
         if (suratToEdit) {
-            const updatedSurat: AnySurat = {
+            const updatedSurat = {
                 ...suratToEdit,
                 ...fullData,
-            };
+            } as AnySurat;
+             if (updatedSurat.tipe === TipeSurat.KELUAR && typeof (updatedSurat as any).tembusan === 'string') {
+                (updatedSurat as SuratKeluar).tembusan = (updatedSurat as any).tembusan.split('\n').map((t: string) => t.trim()).filter(Boolean);
+            }
             onSubmit(updatedSurat);
         } else {
              if (tipe === TipeSurat.MASUK) {
-                // FIX: Error on line 300. Add missing properties `tugasTerkait` and `dokumenTerkait` as required by `SuratBase`.
                 const newSurat: Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar'> = {
                     nomorSurat: fullData.nomorSurat || '',
                     tanggal: fullData.tanggal || '',
@@ -373,7 +374,6 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                 };
                 onSubmit(newSurat);
             } else if (tipe === TipeSurat.NOTA_DINAS) {
-                // FIX: Add logic to create a new NotaDinas object.
                 const newSurat: Omit<NotaDinas, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'status' | 'komentar' | 'pembuat'> = {
                     nomorSurat: fullData.nomorSurat || '',
                     tanggal: fullData.tanggal || '',
@@ -389,7 +389,10 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                 };
                 onSubmit(newSurat);
             } else { // KELUAR
-                // FIX: Error on line 314. Add missing properties `tugasTerkait` and `dokumenTerkait` as required by `SuratBase`.
+                const tembusanArray = (fullData.tembusan && typeof fullData.tembusan === 'string')
+                    ? fullData.tembusan.split('\n').map(t => t.trim()).filter(Boolean)
+                    : [];
+
                 const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> = {
                     nomorSurat: fullData.nomorSurat || '',
                     tanggal: fullData.tanggal || '',
@@ -408,6 +411,7 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                     attachments: fullData.attachments,
                     tugasTerkait: [],
                     dokumenTerkait: [],
+                    tembusan: tembusanArray,
                 };
                 onSubmit(newSurat);
             }
@@ -465,7 +469,6 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                     </div>
                 </div>
                 
-                {/* FIX: Add conditional rendering for each surat type to show correct form fields. */}
                 {tipe === TipeSurat.MASUK ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          <div>
@@ -537,84 +540,111 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                         <div>
                              <label className="block text-sm font-medium text-slate-700">Nomor Surat</label>
                              <div className="flex items-center space-x-2">
-                                <input type="text" name="nomorSurat" value={formData.nomorSurat || ''} onChange={handleChange} required placeholder="Klik tombol untuk generate nomor..." className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-slate-100" readOnly />
-                                <button type="button" onClick={handleGenerateNomor} className="mt-1 whitespace-nowrap bg-slate-700 text-white px-3 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium disabled:opacity-50" disabled={!formData.klasifikasiId}>
-                                    Buat Nomor Otomatis
+                                <input 
+                                    type="text" 
+                                    name="nomorSurat" 
+                                    value={formData.nomorSurat || ''} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                    placeholder="Generate otomatis atau isi manual..."
+                                />
+                                <button type="button" onClick={handleGenerateNomor} className="flex-shrink-0 flex items-center bg-slate-100 text-slate-700 px-3 py-2 rounded-md hover:bg-slate-200 text-sm font-medium">
+                                    <SparklesIcon className="w-4 h-4 mr-1.5" />
+                                    Generate
                                 </button>
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700">Tujuan</label>
-                            <input type="text" name="tujuan" value={formData.tujuan || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
-                        </div>
+                        {initialData?.suratAsli && (
+                            <div className="p-3 bg-slate-50 border rounded-md">
+                                <p className="text-xs font-semibold text-slate-600 flex items-center">
+                                    <LinkIcon className="w-4 h-4 mr-2" />
+                                    Membalas Surat Masuk:
+                                </p>
+                                <p className="text-sm text-slate-800 pl-6 mt-1">
+                                    <span className="font-medium">{initialData.suratAsli.nomorSurat}</span> - {initialData.suratAsli.perihal}
+                                </p>
+                            </div>
+                        )}
                         
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-                            <h4 className="text-sm font-semibold text-blue-800">Buat Draf dengan Bantuan Google Search</h4>
-                            <p className="text-xs text-slate-600">Minta AI untuk membuat draf berdasarkan informasi terkini dari web.</p>
-                            <div className="flex items-center gap-2">
+                        <div className="p-4 bg-sky-50 border border-sky-200 rounded-lg space-y-3">
+                            <h4 className="font-medium text-sky-800">Buat Draf Balasan dengan AI</h4>
+                            <p className="text-xs text-sky-700">Gunakan Google Search untuk mencari informasi relevan dan membuat draf balasan. Tulis kueri atau poin-poin utama yang ingin disampaikan.</p>
+                             <div className="relative">
                                 <input 
+                                    type="text" 
                                     value={aiSearchQuery} 
                                     onChange={e => setAiSearchQuery(e.target.value)} 
-                                    placeholder="cth: buat surat edaran tentang peraturan perjalanan dinas 2024" 
-                                    className="block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                    placeholder="Contoh: Kapan jadwal libur Idul Fitri 2024 dari pemerintah?"
+                                    className="w-full pl-4 pr-32 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500" 
                                 />
-                                <button type="button" onClick={handleAiDraftReplyWithSearch} disabled={isGenerating || !aiSearchQuery} className="inline-flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium disabled:opacity-50">
-                                    <SparklesIcon className="w-4 h-4 mr-2" />
-                                    {isGenerating ? 'Mencari...' : 'Buat Draf'}
+                                <button type="button" onClick={handleAiDraftReplyWithSearch} disabled={isGenerating} className="absolute top-1/2 -translate-y-1/2 right-1.5 flex items-center bg-sky-600 text-white px-3 py-1 rounded-md hover:bg-sky-700 text-sm font-medium disabled:opacity-50">
+                                    <SparklesIcon className="w-4 h-4 mr-1" />
+                                    {isGenerating ? 'Memproses...' : 'Buat Draf'}
                                 </button>
                             </div>
                             {aiSearchResults && (
-                                <div className="mt-2 text-xs">
-                                    <p className="font-semibold">Sumber Informasi:</p>
-                                    <ul className="list-disc list-inside space-y-1">
-                                    {aiSearchResults.sources.map((source: any, index: number) => (
-                                        <li key={index}>
-                                            <a href={source.web.uri} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate" title={source.web.title}>
-                                                {source.web.title || source.web.uri}
-                                            </a>
-                                        </li>
-                                    ))}
+                                <div className="text-xs text-slate-600 pt-2 border-t">
+                                    <p className="font-semibold">Sumber yang digunakan AI:</p>
+                                    <ul className="list-disc list-inside">
+                                        {aiSearchResults.sources.map((s: any, i: number) => (
+                                            <li key={i}><a href={s.web?.uri} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{s.web?.title}</a></li>
+                                        ))}
                                     </ul>
                                 </div>
                             )}
                         </div>
 
-                         <div>
-                            <label className="block text-sm font-medium text-slate-700">Isi Surat (Ringkasan)</label>
-                             <textarea name="ringkasan" value={formData.ringkasan || ''} onChange={handleChange} rows={5} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-sm font-medium text-slate-700">Tujuan (Eksternal)</label>
+                                <input type="text" name="tujuan" value={formData.tujuan || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">Tujuan (Internal)</label>
+                                <select name="tujuanUnitKerjaId" value={formData.tujuanUnitKerjaId || ''} onChange={handleChange} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    <option value="">-- Tidak ada (Surat Eksternal) --</option>
+                                    {props.unitKerjaList.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
+                                </select>
+                            </div>
                         </div>
+                        
+                        <div>
+                           <label className="block text-sm font-medium text-slate-700">Isi Surat (Ringkasan)</label>
+                           <textarea name="ringkasan" value={formData.ringkasan || ''} onChange={handleChange} rows={8} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                       </div>
+                       
+                        <div>
+                           <label className="block text-sm font-medium text-slate-700">Tembusan</label>
+                           <textarea name="tembusan" value={formData.tembusan || ''} onChange={handleChange} rows={3} placeholder="Satu tembusan per baris" className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                       </div>
+
                     </>
                 )}
-                
-                 <div>
-                        <label className="block text-sm font-medium text-slate-700">Sifat</label>
-                        <select name="sifat" value={formData.sifat || SifatSurat.BIASA} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                            {Object.values(SifatSurat).map(s => <option key={s as string} value={s as string}>{s}</option>)}
-                        </select>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Sifat</label>
+                    <select name="sifat" value={formData.sifat || SifatSurat.BIASA} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        {Object.values(SifatSurat).map(s => <option key={s as string} value={s as string}>{s}</option>)}
+                    </select>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-700">Lampiran File</label>
+                    <label className="block text-sm font-medium text-slate-700">Lampiran</label>
                     <div className="mt-1 flex items-center">
                         <label htmlFor="file-upload" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50">
-                            <PaperClipIcon className="w-4 h-4 inline-block mr-2" />
+                            <PaperClipIcon className="w-4 h-4 mr-2 inline-block"/>
                             <span>Pilih File</span>
                             <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} multiple />
                         </label>
                     </div>
-                     {attachments.length > 0 && (
-                        <div className="mt-2 space-y-2">
+                    {attachments.length > 0 && (
+                        <div className="mt-2 space-y-1 text-sm">
                             {attachments.map(att => (
-                                <div key={att.id} className="flex items-center justify-between text-sm p-2 bg-slate-100 rounded-md">
-                                    <div className="flex items-center overflow-hidden">
-                                        <PaperClipIcon className="w-4 h-4 mr-2 flex-shrink-0 text-slate-500"/>
-                                        <span className="truncate" title={att.name}>{att.name}</span>
-                                        <span className="ml-2 text-slate-500 flex-shrink-0">({(att.size / 1024).toFixed(1)} KB)</span>
-                                    </div>
-                                    <button type="button" onClick={() => removeAttachment(att.id)} className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0">
-                                        <XIcon className="w-4 h-4"/>
-                                    </button>
+                                <div key={att.id} className="flex items-center justify-between p-1 bg-slate-100 rounded">
+                                    <span className="truncate">{att.name}</span>
+                                    <button type="button" onClick={() => removeAttachment(att.id)} className="ml-2 text-red-500 hover:text-red-700"><XIcon className="w-4 h-4"/></button>
                                 </div>
                             ))}
                         </div>
@@ -631,5 +661,3 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
         </Modal>
     );
 };
-
-export default SuratFormModal;

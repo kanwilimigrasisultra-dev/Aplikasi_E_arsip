@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pengumuman } from '../types';
-import { MegaphoneIcon } from '@heroicons/react/24/outline';
-import { XIcon } from './icons';
+import { MegaphoneIcon, XIcon } from './icons';
 
 interface AnnouncementBannerProps {
     pengumumanList: Pengumuman[];

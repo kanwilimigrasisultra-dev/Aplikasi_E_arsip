@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { NotaDinas as TNotaDinas, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, FolderArsip, UnitKerja, TipeSurat, Tugas, AppSettings } from '../types';
 import { PlusIcon, SearchIcon, RefreshIcon } from './icons';
-import SuratFormModal from './SuratFormModal';
+// FIX: Changed import to be a named import.
+import { SuratFormModal } from './SuratFormModal';
 import SuratDetailModal from './SuratDetailModal';
 import PilihFolderArsipModal from './PilihFolderArsipModal';
 
@@ -160,7 +161,6 @@ const NotaDinasComponent: React.FC<NotaDinasProps> = (props) => {
                 kategoriList={props.kategoriList}
                 unitKerjaList={props.unitKerjaList}
                 currentUser={props.currentUser}
-                // FIX: Pass `allUsers` prop to SuratFormModal for selecting recipients.
                 allUsers={props.allUsers}
                 suratToEdit={suratToEdit}
             />
@@ -180,7 +180,6 @@ const NotaDinasComponent: React.FC<NotaDinasProps> = (props) => {
                     onAddKomentar={props.onAddKomentar}
                     onReplyWithAI={() => {}} // Not applicable
                     kopSuratSettings={props.kopSuratSettings}
-                    // FIX: Pass the required `appSettings` prop.
                     appSettings={props.appSettings}
                     allSurat={[]}
                     unitKerjaList={props.unitKerjaList}

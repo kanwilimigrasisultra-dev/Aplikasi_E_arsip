@@ -9,6 +9,28 @@ interface PengaturanKopSuratProps {
     onSave: (newSettings: KopSuratSettings) => void;
 }
 
+const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabled: boolean) => void }> = ({ label, enabled, onChange }) => (
+    <div className="flex items-center justify-between py-2">
+        <span className="text-sm text-slate-600">{label}</span>
+        <button
+            type="button"
+            onClick={() => onChange(!enabled)}
+            className={`${
+                enabled ? 'bg-slate-700' : 'bg-slate-300'
+            } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2`}
+            role="switch"
+            aria-checked={enabled}
+        >
+            <span
+                className={`${
+                    enabled ? 'translate-x-5' : 'translate-x-0'
+                } inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+            />
+        </button>
+    </div>
+);
+
+
 const PengaturanKopSurat: React.FC<PengaturanKopSuratProps> = ({ settings, onSave }) => {
     const [formState, setFormState] = useState<KopSuratSettings>(settings);
     const [isSaved, setIsSaved] = useState(false);
@@ -94,6 +116,22 @@ const PengaturanKopSurat: React.FC<PengaturanKopSuratProps> = ({ settings, onSav
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-4">
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                         <div className="md:col-span-1">
+                            <h4 className="font-medium text-slate-700">Opsi Tanda Tangan</h4>
+                            <p className="text-sm text-slate-500">Pengaturan tambahan untuk tanda tangan digital.</p>
+                        </div>
+                        <div className="md:col-span-2">
+                            <ToggleSwitch
+                                label="Sematkan Logo pada QR Code"
+                                enabled={formState.sematkanLogoDiQRCode}
+                                onChange={(value) => setFormState(prev => ({ ...prev, sematkanLogoDiQRCode: value }))}
+                            />
+                        </div>
+                     </div>
                 </div>
 
                 <div className="flex justify-end pt-4">
