@@ -275,3 +275,8 @@ export type DashboardWidgetSettings = {
     recent: boolean;
     tasks: boolean;
 };
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}

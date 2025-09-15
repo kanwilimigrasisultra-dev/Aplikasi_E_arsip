@@ -29,6 +29,7 @@ import VerifikasiDokumen from './components/VerifikasiDokumen';
 import Laporan from './components/Laporan';
 import NotificationBell from './components/NotificationBell';
 import AnnouncementBanner from './components/AnnouncementBanner';
+import BantuanAI from './components/BantuanAI';
 import { ArchiveIcon, CogIcon, InboxIcon, OutboxIcon, SearchIcon, ShieldCheckIcon, UsersIcon, SparklesIcon, ClipboardListIcon, ArchiveBoxArrowDownIcon } from './components/icons';
 import { HomeIcon } from '@heroicons/react/24/outline';
 
@@ -582,6 +583,7 @@ function App() {
                     &copy; 2025 STAR E-ARSIM SULTRA. All rights reserved by acn@tikim_sultra.
                 </footer>
             </div>
+            <BantuanAI />
         </div>
     );
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import {
     AnySurat, TipeSurat, SifatSurat, KategoriSurat, UnitKerja, User,
-    SuratMasuk, SuratKeluar, NotaDinas, MasalahUtama, KlasifikasiSurat, PenomoranSettings, Attachment, TemplateSurat
+    SuratMasuk, SuratKeluar, NotaDinas, MasalahUtama, KlasifikasiSurat, PenomoranSettings, Attachment, TemplateSurat, Disposisi, Komentar, Tugas, DokumenTerkait, ApprovalStep
 } from '../types';
 import Modal from './Modal';
 import { PaperClipIcon, SparklesIcon, XIcon, LinkIcon } from './icons';
@@ -26,7 +26,49 @@ interface SuratFormModalProps {
 }
 
 // FIX: Add NotaDinas to FormData to support all surat types.
-type FormData = Partial<Omit<SuratMasuk, 'tipe'> & Omit<SuratKeluar, 'tipe'> & Omit<NotaDinas, 'tipe'>> & { suratAsli?: SuratMasuk };
+// The original intersection-based definition causes type conflicts with the 'status' property.
+// Redefining FormData to explicitly handle all properties from SuratMasuk, SuratKeluar, and NotaDinas,
+// using the widest possible type for conflicting properties like 'status'.
+type FormData = {
+    // from SuratBase
+    nomorSurat?: string;
+    tanggal?: string;
+    perihal?: string;
+    kategoriId?: string;
+    sifat?: SifatSurat;
+    attachments?: Attachment[];
+    komentar?: Komentar[];
+    tugasTerkait?: Tugas[];
+    dokumenTerkait?: DokumenTerkait[];
+    
+    // from SuratMasuk
+    pengirim?: string;
+    tanggalDiterima?: string;
+    disposisi?: Disposisi[];
+    isiRingkasAI?: string;
+
+    // from SuratKeluar
+    tujuan?: string;
+    tujuanUnitKerjaId?: string;
+    pembuat?: User;
+    jenisSuratKeluar?: 'Biasa' | 'SK';
+    masalahUtamaId?: string;
+    klasifikasiId?: string;
+    ringkasan?: string;
+    tandaTangan?: string;
+    suratAsliId?: string;
+    status?: SuratKeluar['status']; // Union type, SuratKeluar's is wider
+    version?: number;
+    history?: Partial<SuratKeluar>[];
+    approvalChain?: ApprovalStep[];
+
+    // from NotaDinas
+    tujuanUserIds?: string[];
+    // status is covered, pembuat is covered, ringkasan is covered.
+    
+    // Other
+    suratAsli?: SuratMasuk;
+};
 
 
 const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
