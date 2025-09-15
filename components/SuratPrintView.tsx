@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import { AnySurat, KopSuratSettings, UnitKerja, TipeSurat, SuratKeluar, User } from '../types';
+import { AnySurat, KopSuratSettings, UnitKerja, TipeSurat, SuratKeluar, User, SuratMasuk } from '../types';
 
 interface SuratPrintViewProps {
   surat: AnySurat;
@@ -71,6 +72,9 @@ const SuratPrintView: React.FC<SuratPrintViewProps> = ({ surat, kopSuratSettings
             // Treat ringkasan as HTML content for rich text
             return <div className="space-y-4" dangerouslySetInnerHTML={{ __html: surat.ringkasan.replace(/\n/g, '<br />') }} />;
         }
+        if(surat.tipe === TipeSurat.NOTA_DINAS) {
+            return <div className="space-y-4" dangerouslySetInnerHTML={{ __html: surat.ringkasan.replace(/\n/g, '<br />') }} />;
+        }
         // Fallback for Surat Masuk
         return (
              <div className="space-y-4">
@@ -113,7 +117,7 @@ const SuratPrintView: React.FC<SuratPrintViewProps> = ({ surat, kopSuratSettings
 
                     <div className="mb-8">
                         <p>Kepada Yth.</p>
-                        <p className="font-bold">{surat.tipe === TipeSurat.KELUAR ? surat.tujuan : surat.pengirim}</p>
+                        <p className="font-bold">{surat.tipe === TipeSurat.KELUAR ? surat.tujuan : surat.tipe === TipeSurat.MASUK ? surat.pengirim : "Internal"}</p>
                         <p>di Tempat</p>
                     </div>
 

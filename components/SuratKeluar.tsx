@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk, ApprovalStep, TemplateSurat } from '../types';
-import { PlusIcon, SearchIcon, RefreshIcon } from './icons';
+import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk, ApprovalStep, TemplateSurat, Tugas } from '../types';
+import { PlusIcon, SearchIcon, RefreshIcon, ArchiveIcon } from './icons';
 import SuratFormModal from './SuratFormModal';
 import SuratDetailModal from './SuratDetailModal';
 import PilihFolderArsipModal from './PilihFolderArsipModal';
@@ -34,13 +33,15 @@ interface SuratKeluarProps {
     appSettings: AppSettings;
     penomoranSettings: PenomoranSettings;
     folders: FolderArsip[];
-    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'>) => void;
+    onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait'>) => void;
     onUpdate: (surat: AnySurat) => void;
     onArchive: (suratId: string, folderId: string) => void;
+    onBulkArchive: (suratIds: string[], folderId: string) => void;
     onTambahTandaTangan: (suratId: string, signatureDataUrl?: string) => void;
     onKirimUntukPersetujuan: (suratId: string) => void;
     onPersetujuan: (suratId: string, stepId: string, decision: 'Disetujui' | 'Ditolak', notes: string) => void;
     onAddKomentar: (suratId: string, teks: string) => void;
+    onAddTask: (tugas: Omit<Tugas, 'id'>) => void;
     initialData?: (Partial<TSuratKeluar> & { suratAsli?: TSuratMasuk }) | null;
     clearInitialData: () => void;
 }
@@ -52,6 +53,8 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
     const [selectedSurat, setSelectedSurat] = useState<TSuratKeluar | null>(null);
     const [suratToEdit, setSuratToEdit] = useState<TSuratKeluar | null>(null);
     const [suratToArchive, setSuratToArchive] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
     
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -121,7 +124,10 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
     };
     
     const handleConfirmArchive = (folderId: string) => {
-        if(suratToArchive) {
+        if (selectedIds.length > 0) {
+            props.onBulkArchive(selectedIds, folderId);
+            setSelectedIds([]);
+        } else if(suratToArchive) {
             props.onArchive(suratToArchive, folderId);
         }
         setArchiveModalOpen(false);
@@ -137,13 +143,27 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
         setUnitKerjaFilter('');
     };
     
-    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> | AnySurat) => {
+    const handleFormSubmit = (suratData: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait'> | AnySurat) => {
         if ('id' in suratData) {
             props.onUpdate(suratData as AnySurat);
         } else {
-            props.onSubmit(suratData as Omit<TSuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'>);
+            props.onSubmit(suratData as Omit<TSuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait'>);
         }
         handleCloseFormModal();
+    };
+
+     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedIds(filteredSurat.map(s => s.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+        );
     };
 
     const getSifatBadge = (sifat: SifatSurat) => {
@@ -224,11 +244,28 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                     </div>
                 </div>
 
+                 {/* Bulk Actions Toolbar */}
+                {selectedIds.length > 0 && (
+                    <div className="bg-slate-700 text-white p-3 rounded-lg mb-4 flex items-center justify-between">
+                        <span className="font-medium text-sm">{selectedIds.length} surat dipilih</span>
+                        <button onClick={() => setArchiveModalOpen(true)} className="flex items-center bg-emerald-500 text-white px-3 py-1.5 rounded-md hover:bg-emerald-600 text-sm font-medium">
+                            <ArchiveIcon className="w-4 h-4 mr-2" />
+                            Arsipkan Terpilih
+                        </button>
+                    </div>
+                )}
+
                 {/* Table */}
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left text-slate-500">
                         <thead className="text-xs text-slate-700 uppercase bg-slate-100">
                             <tr>
+                                <th scope="col" className="p-4">
+                                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-slate-600 focus:ring-slate-500"
+                                        checked={selectedIds.length === filteredSurat.length && filteredSurat.length > 0}
+                                        onChange={handleSelectAll}
+                                    />
+                                </th>
                                 <th scope="col" className="px-6 py-3">Nomor Surat</th>
                                 <th scope="col" className="px-6 py-3">Perihal</th>
                                 <th scope="col" className="px-6 py-3">Tujuan</th>
@@ -242,7 +279,13 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                             {filteredSurat.map(surat => {
                                 const canEdit = (surat.status === 'Draf' || surat.status === 'Revisi') && surat.pembuat.id === props.currentUser.id;
                                 return (
-                                <tr key={surat.id} className="bg-white border-b hover:bg-slate-50">
+                                <tr key={surat.id} className={`bg-white border-b hover:bg-slate-50 ${selectedIds.includes(surat.id) ? 'bg-slate-100' : ''}`}>
+                                    <td className="p-4">
+                                         <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-slate-600 focus:ring-slate-500"
+                                            checked={selectedIds.includes(surat.id)}
+                                            onChange={() => handleSelectOne(surat.id)}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 font-medium text-slate-900">{surat.nomorSurat}</td>
                                     <td className="px-6 py-4 max-w-xs truncate">{surat.perihal}</td>
                                     <td className="px-6 py-4">{surat.tujuan}</td>
@@ -296,6 +339,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                     onKirimUntukPersetujuan={props.onKirimUntukPersetujuan}
                     onPersetujuan={props.onPersetujuan}
                     onAddKomentar={props.onAddKomentar}
+                    onAddTask={props.onAddTask}
                     onReplyWithAI={() => {}} // Not applicable here
                     kopSuratSettings={props.kopSuratSettings}
                     appSettings={props.appSettings}

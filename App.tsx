@@ -1,17 +1,18 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 
 // --- MOCK DATA IMPORTS ---
 import {
     mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockSuratMasuk, mockSuratKeluar, mockFolders, mockNotifikasi, mockActivityLogs,
-    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman
+    mockKopSuratSettings, mockAppSettings, mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman, mockNotaDinas, mockTugas
 } from './mock-data';
 
 // --- TYPE IMPORTS ---
 import {
     User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
     SuratMasuk, SuratKeluar, AnySurat, FolderArsip, Notifikasi, ActivityLog,
-    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings, KebijakanRetensi, Attachment, ApprovalStep, TemplateSurat, Delegasi, Komentar, Pengumuman
+    KopSuratSettings, AppSettings, PenomoranSettings, TipeSurat, SifatDisposisi, StatusDisposisi, Disposisi, UserRole, BrandingSettings, KebijakanRetensi, Attachment, ApprovalStep, TemplateSurat, Delegasi, Komentar, Pengumuman, NotaDinas, Tugas, DashboardWidgetSettings
 } from './types';
 
 // --- COMPONENT IMPORTS ---
@@ -19,6 +20,7 @@ import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import SuratMasukComponent from './components/SuratMasuk';
 import SuratKeluarComponent from './components/SuratKeluar';
+import NotaDinasComponent from './components/NotaDinas';
 import Arsip from './components/Arsip';
 import Administrasi from './components/Administrasi';
 import Pengaturan from './components/Pengaturan';
@@ -27,17 +29,17 @@ import VerifikasiDokumen from './components/VerifikasiDokumen';
 import Laporan from './components/Laporan';
 import NotificationBell from './components/NotificationBell';
 import AnnouncementBanner from './components/AnnouncementBanner';
-import { ArchiveIcon, CogIcon, InboxIcon, OutboxIcon, SearchIcon, ShieldCheckIcon, UsersIcon, SparklesIcon, ClipboardListIcon } from './components/icons';
+import { ArchiveIcon, CogIcon, InboxIcon, OutboxIcon, SearchIcon, ShieldCheckIcon, UsersIcon, SparklesIcon, ClipboardListIcon, ArchiveBoxArrowDownIcon } from './components/icons';
 import { HomeIcon } from '@heroicons/react/24/outline';
 
 
-type Page = 'dashboard' | 'surat-masuk' | 'surat-keluar' | 'arsip' | 'pencarian' | 'verifikasi' | 'laporan' | 'administrasi' | 'pengaturan';
+type Page = 'dashboard' | 'surat-masuk' | 'surat-keluar' | 'nota-dinas' | 'arsip' | 'pencarian' | 'verifikasi' | 'laporan' | 'administrasi' | 'pengaturan';
 
 // Main App Component
 function App() {
     // --- STATE MANAGEMENT ---
     const [allUsers, setAllUsers] = useState<User[]>(mockUsers);
-    const [allSurat, setAllSurat] = useState<AnySurat[]>([...mockSuratMasuk, ...mockSuratKeluar]);
+    const [allSurat, setAllSurat] = useState<AnySurat[]>([...mockSuratMasuk, ...mockSuratKeluar, ...mockNotaDinas]);
     const [allFolders, setAllFolders] = useState<FolderArsip[]>(mockFolders);
     const [allKategori, setAllKategori] = useState<KategoriSurat[]>(mockKategori);
     const [allTemplates, setAllTemplates] = useState<TemplateSurat[]>(mockTemplates);
@@ -46,6 +48,7 @@ function App() {
     const [allMasalahUtama, setAllMasalahUtama] = useState<MasalahUtama[]>(mockMasalahUtama);
     const [allKlasifikasi, setAllKlasifikasi] = useState<KlasifikasiSurat[]>(mockKlasifikasi);
     const [allKebijakanRetensi, setAllKebijakanRetensi] = useState<KebijakanRetensi[]>(mockKebijakanRetensi);
+    const [allTugas, setAllTugas] = useState<Tugas[]>(mockTugas);
     const [notifications, setNotifications] = useState<Notifikasi[]>(mockNotifikasi);
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(mockActivityLogs);
     const [kopSuratSettings, setKopSuratSettings] = useState<KopSuratSettings>(mockKopSuratSettings);
@@ -56,10 +59,12 @@ function App() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [activePage, setActivePage] = useState<Page>('dashboard');
     const [suratKeluarInitialData, setSuratKeluarInitialData] = useState<(Partial<SuratKeluar> & { suratAsli?: SuratMasuk }) | null>(null);
+    const [dashboardWidgets, setDashboardWidgets] = useState<DashboardWidgetSettings>({ stats: true, chart: true, recent: true, tasks: true });
 
     // --- COMPUTED DATA (MEMOIZED) ---
     const activeSuratMasuk = useMemo(() => allSurat.filter(s => s.tipe === TipeSurat.MASUK && !s.isArchived) as SuratMasuk[], [allSurat]);
     const activeSuratKeluar = useMemo(() => allSurat.filter(s => s.tipe === TipeSurat.KELUAR && !s.isArchived) as SuratKeluar[], [allSurat]);
+    const activeNotaDinas = useMemo(() => allSurat.filter(s => s.tipe === TipeSurat.NOTA_DINAS && !s.isArchived) as NotaDinas[], [allSurat]);
     const archivedSurat = useMemo(() => allSurat.filter(s => s.isArchived), [allSurat]);
     const activePengumuman = useMemo(() => {
         const now = new Date();
@@ -109,26 +114,36 @@ function App() {
 
     const handleLogout = useCallback(() => setCurrentUser(null), []);
     
-    const handleSuratSubmit = useCallback((suratData: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'komentar'>) => {
+    const handleSuratSubmit = useCallback((suratData: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait'>) => {
         const commonData = {
-            id: `${suratData.tipe === TipeSurat.MASUK ? 'sm' : 'sk'}-${Date.now()}`,
+            id: `${suratData.tipe.substring(0,2)}-${Date.now()}`,
             isArchived: false,
             fileUrl: '#',
             unitKerjaId: currentUser!.unitKerjaId,
             komentar: [],
+            tugasTerkait: [],
+            dokumenTerkait: [],
         };
 
         let newSurat: AnySurat;
 
         if (suratData.tipe === TipeSurat.MASUK) {
-            const typedSuratData = suratData as Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar'>;
+            const typedSuratData = suratData as Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait'>;
             newSurat = {
                 ...typedSuratData,
                 ...commonData,
                 disposisi: [],
             };
+        } else if (suratData.tipe === TipeSurat.NOTA_DINAS) {
+            const typedSuratData = suratData as Omit<NotaDinas, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'status' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait' | 'pembuat'>;
+            newSurat = {
+                ...typedSuratData,
+                ...commonData,
+                pembuat: currentUser!,
+                status: 'Terkirim',
+            };
         } else { 
-            const typedSuratData = suratData as Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'>;
+            const typedSuratData = suratData as Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait'>;
             
             const manajerialUser = allUsers.find(u => u.role === UserRole.MANAJERIAL && u.unitKerjaId === currentUser!.unitKerjaId);
             const pimpinanUser = allUsers.find(u => u.role === UserRole.PIMPINAN && u.unitKerjaId === currentUser!.unitKerjaId);
@@ -148,7 +163,7 @@ function App() {
         }
 
         setAllSurat(prev => [newSurat, ...prev]);
-        logAction(`Menambahkan surat ${newSurat.tipe === TipeSurat.MASUK ? 'masuk' : 'keluar'} baru dengan perihal "${newSurat.perihal}"`);
+        logAction(`Menambahkan ${newSurat.tipe.toLowerCase()} baru dengan perihal "${newSurat.perihal}"`);
     }, [currentUser, logAction, allUsers]);
 
     const handleSuratUpdate = useCallback((updatedSurat: AnySurat) => {
@@ -174,6 +189,11 @@ function App() {
         const surat = allSurat.find(s => s.id === suratId);
         if(surat) logAction(`Mengarsipkan surat "${surat.nomorSurat}"`);
     }, [allSurat, logAction]);
+
+    const handleBulkArchive = useCallback((suratIds: string[], folderId: string) => {
+        setAllSurat(prev => prev.map(s => suratIds.includes(s.id) ? { ...s, isArchived: true, folderId } : s));
+        logAction(`Mengarsipkan ${suratIds.length} surat.`);
+    }, [logAction]);
 
     const handleAddDisposisi = useCallback((suratId: string, catatan: string, tujuanId: string, sifat: SifatDisposisi) => {
         const tujuanUser = allUsers.find(u => u.id === tujuanId);
@@ -367,6 +387,13 @@ function App() {
         logAction(`Menghapus pengumuman dengan ID: ${pengumumanId}`);
     }, [logAction]);
 
+    const handleAddTask = useCallback((tugas: Omit<Tugas, 'id'>) => {
+        const newTugas: Tugas = { ...tugas, id: `tugas-${Date.now()}` };
+        setAllTugas(prev => [newTugas, ...prev]);
+        setAllSurat(prev => prev.map(s => s.id === tugas.suratId ? { ...s, tugasTerkait: [...s.tugasTerkait, newTugas] } : s));
+        logAction(`Menambahkan tugas baru "${tugas.deskripsi}" ke surat ${tugas.suratId}`);
+    }, [logAction]);
+
     // --- RENDER LOGIC ---
     if (!currentUser) {
         return <LoginPage onLogin={handleLogin} brandingSettings={brandingSettings} />;
@@ -375,7 +402,16 @@ function App() {
     const renderPage = () => {
         switch (activePage) {
             case 'dashboard':
-                return <Dashboard suratMasukCount={activeSuratMasuk.length} suratKeluarCount={activeSuratKeluar.length} archivedCount={archivedSurat.length} allSurat={allSurat} />;
+                return <Dashboard 
+                            suratMasukCount={activeSuratMasuk.length} 
+                            suratKeluarCount={activeSuratKeluar.length} 
+                            archivedCount={archivedSurat.length} 
+                            allSurat={allSurat}
+                            allTugas={allTugas}
+                            currentUser={currentUser}
+                            widgetSettings={dashboardWidgets}
+                            onWidgetSettingsChange={setDashboardWidgets}
+                        />;
             case 'surat-masuk':
                 return <SuratMasukComponent 
                     suratList={activeSuratMasuk} 
@@ -390,10 +426,12 @@ function App() {
                     onSubmit={handleSuratSubmit}
                     onUpdate={handleSuratUpdate}
                     onArchive={handleSuratArchive}
+                    onBulkArchive={handleBulkArchive}
                     onAddDisposisi={handleAddDisposisi}
                     onUpdateDisposisiStatus={handleUpdateDisposisiStatus}
                     onReplyWithAI={handleReplyWithAI}
                     onAddKomentar={handleAddKomentar}
+                    onAddTask={handleAddTask}
                 />;
             case 'surat-keluar':
                 return <SuratKeluarComponent 
@@ -413,12 +451,31 @@ function App() {
                     onSubmit={handleSuratSubmit}
                     onUpdate={handleSuratUpdate}
                     onArchive={handleSuratArchive}
+                    onBulkArchive={handleBulkArchive}
                     onTambahTandaTangan={handleTambahTandaTangan}
                     onKirimUntukPersetujuan={handleKirimUntukPersetujuan}
                     onPersetujuan={handlePersetujuan}
                     onAddKomentar={handleAddKomentar}
+                    onAddTask={handleAddTask}
                     initialData={suratKeluarInitialData}
                     clearInitialData={() => setSuratKeluarInitialData(null)}
+                />;
+             case 'nota-dinas':
+                return <NotaDinasComponent
+                    suratList={activeNotaDinas}
+                    kategoriList={allKategori}
+                    unitKerjaList={allUnitKerja}
+                    currentUser={currentUser}
+                    allUsers={allUsers}
+                    kopSuratSettings={kopSuratSettings}
+                    // FIX: Pass appSettings prop to NotaDinasComponent.
+                    appSettings={appSettings}
+                    folders={allFolders}
+                    onSubmit={handleSuratSubmit}
+                    onUpdate={handleSuratUpdate}
+                    onArchive={handleSuratArchive}
+                    onAddKomentar={handleAddKomentar}
+                    onAddTask={handleAddTask}
                 />;
             case 'arsip':
                 return <Arsip suratList={archivedSurat} folders={allFolders} kategoriList={allKategori} onCreateFolder={(nama) => setAllFolders(prev => [...prev, {id: `folder-${Date.now()}`, nama}])} currentUser={currentUser} />;
@@ -427,9 +484,9 @@ function App() {
             case 'verifikasi':
                 return <VerifikasiDokumen suratKeluarList={allSurat.filter(s => s.tipe === TipeSurat.KELUAR) as SuratKeluar[]} />;
             case 'laporan':
-                return <Laporan allSurat={allSurat} allKategori={allKategori} kopSuratSettings={kopSuratSettings} unitKerjaList={allUnitKerja} currentUser={currentUser}/>;
+                return <Laporan allSurat={allSurat} allKategori={allKategori} kopSuratSettings={kopSuratSettings} unitKerjaList={allUnitKerja} currentUser={currentUser} allUsers={allUsers}/>;
             case 'administrasi':
-                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} kebijakanRetensiList={allKebijakanRetensi} templateList={allTemplates} onTemplateSubmit={handleTemplateSubmit} allPengumuman={allPengumuman} onPengumumanSubmit={handlePengumumanSubmit} onPengumumanDelete={handlePengumumanDelete} activityLogs={activityLogs} currentUser={currentUser} />;
+                return <Administrasi users={allUsers} unitKerjaList={allUnitKerja} kategoriList={allKategori} masalahUtamaList={allMasalahUtama} klasifikasiList={allKlasifikasi} kebijakanRetensiList={allKebijakanRetensi} templateList={allTemplates} onTemplateSubmit={handleTemplateSubmit} allPengumuman={allPengumuman} onPengumumanSubmit={handlePengumumanSubmit} onPengumumanDelete={handlePengumumanDelete} activityLogs={activityLogs} currentUser={currentUser} allSurat={allSurat} />;
             case 'pengaturan':
                 return <Pengaturan settings={appSettings} onSettingsChange={setAppSettings} currentUser={currentUser} allUsers={allUsers} onSetDelegasi={handleSetDelegasi} kopSuratSettings={kopSuratSettings} onUpdateKopSurat={setKopSuratSettings} penomoranSettings={penomoranSettings} onUpdatePenomoran={setPenomoranSettings} brandingSettings={brandingSettings} onUpdateBranding={handleUpdateBranding} />;
             default:
@@ -441,6 +498,7 @@ function App() {
       dashboard: 'Dashboard',
       'surat-masuk': 'Surat Masuk',
       'surat-keluar': 'Surat Keluar',
+      'nota-dinas': 'Nota Dinas Internal',
       arsip: 'Arsip Digital',
       pencarian: 'Pencarian Cerdas',
       verifikasi: 'Verifikasi Dokumen',
@@ -475,6 +533,7 @@ function App() {
                     <NavLink page="dashboard" icon={<HomeIcon className="w-6 h-6"/>} label="Dashboard" />
                     <NavLink page="surat-masuk" icon={<InboxIcon className="w-6 h-6"/>} label="Surat Masuk" />
                     <NavLink page="surat-keluar" icon={<OutboxIcon className="w-6 h-6"/>} label="Surat Keluar" />
+                    <NavLink page="nota-dinas" icon={<ArchiveBoxArrowDownIcon className="w-6 h-6"/>} label="Nota Dinas" />
                     <NavLink page="arsip" icon={<ArchiveIcon className="w-6 h-6"/>} label="Arsip" />
                     <NavLink page="laporan" icon={<ClipboardListIcon className="w-6 h-6"/>} label="Laporan" />
                     <div className="pt-2 mt-2 border-t">
@@ -482,7 +541,7 @@ function App() {
                         <NavLink page="verifikasi" icon={<ShieldCheckIcon className="w-6 h-6"/>} label="Verifikasi" />
                     </div>
                      <div className="pt-2 mt-2 border-t">
-                        <NavLink page="administrasi" icon={<UsersIcon className="w-6 h-6"/>} label="Administrasi" restrictedTo={[UserRole.ADMIN, UserRole.SUPER_ADMIN]} />
+                        <NavLink page="administrasi" icon={<UsersIcon className="w-6 h-6"/>} label="Administrasi" restrictedTo={[UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PIMPINAN]} />
                         <NavLink page="pengaturan" icon={<CogIcon className="w-6 h-6"/>} label="Pengaturan" />
                     </div>
                 </nav>
@@ -501,7 +560,9 @@ function App() {
                                 setNotifications(prev => prev.map(n => n.id === notifId ? {...n, isRead: true} : n));
                                 const surat = allSurat.find(s => s.id === suratId);
                                 if(surat) {
-                                    setActivePage(surat.tipe === TipeSurat.MASUK ? 'surat-masuk' : 'surat-keluar');
+                                     if(surat.tipe === TipeSurat.MASUK) setActivePage('surat-masuk');
+                                     else if(surat.tipe === TipeSurat.KELUAR) setActivePage('surat-keluar');
+                                     else if(surat.tipe === TipeSurat.NOTA_DINAS) setActivePage('nota-dinas');
                                 }
                             }}
                         />

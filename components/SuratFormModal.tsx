@@ -2,15 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import {
     AnySurat, TipeSurat, SifatSurat, KategoriSurat, UnitKerja, User,
-    SuratMasuk, SuratKeluar, MasalahUtama, KlasifikasiSurat, PenomoranSettings, Attachment, TemplateSurat
+    SuratMasuk, SuratKeluar, NotaDinas, MasalahUtama, KlasifikasiSurat, PenomoranSettings, Attachment, TemplateSurat
 } from '../types';
 import Modal from './Modal';
-import { PaperClipIcon, SparklesIcon, XIcon } from './icons';
+import { PaperClipIcon, SparklesIcon, XIcon, LinkIcon } from './icons';
 
 interface SuratFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    // FIX: Added 'komentar' to Omit to align with parent component logic where it's auto-generated.
     onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'disposisi' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> | AnySurat) => void;
     tipe: TipeSurat;
     kategoriList: KategoriSurat[];
@@ -18,15 +17,16 @@ interface SuratFormModalProps {
     klasifikasiList?: KlasifikasiSurat[];
     unitKerjaList: UnitKerja[];
     currentUser: User;
+    allUsers?: User[];
     allSurat?: AnySurat[];
     penomoranSettings?: PenomoranSettings;
     suratToEdit?: AnySurat | null;
     initialData?: (Partial<SuratKeluar> & { suratAsli?: SuratMasuk }) | null;
-    // FIX: Add allTemplates to props
     allTemplates?: TemplateSurat[];
 }
 
-type FormData = Partial<Omit<SuratMasuk, 'tipe'> & Omit<SuratKeluar, 'tipe'>> & { suratAsli?: SuratMasuk };
+// FIX: Add NotaDinas to FormData to support all surat types.
+type FormData = Partial<Omit<SuratMasuk, 'tipe'> & Omit<SuratKeluar, 'tipe'> & Omit<NotaDinas, 'tipe'>> & { suratAsli?: SuratMasuk };
 
 
 const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
@@ -49,6 +49,13 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                 tanggalDiterima: new Date().toISOString().split('T')[0],
                 isiRingkasAI: '',
             };
+        // FIX: Add case for NotaDinas to provide correct initial state.
+        } else if (tipe === TipeSurat.NOTA_DINAS) {
+            return {
+                ...defaults,
+                tujuanUserIds: [],
+                ringkasan: '',
+            };
         } else { // KELUAR
             return {
                 ...defaults,
@@ -65,8 +72,9 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
     const [formData, setFormData] = useState<FormData>(getInitialState());
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [aiSearchQuery, setAiSearchQuery] = useState('');
+    const [aiSearchResults, setAiSearchResults] = useState<{ sources: any[], content: string } | null>(null);
     const [poinBalasan, setPoinBalasan] = useState('');
-    // Add state for selected template
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
     const filteredKlasifikasi = useMemo(() => {
@@ -96,8 +104,9 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                 setAttachments([]);
             }
             setPoinBalasan('');
-            // Reset template selection when modal opens
             setSelectedTemplateId('');
+            setAiSearchQuery('');
+            setAiSearchResults(null);
         }
     }, [isOpen, suratToEdit, initialData]);
 
@@ -111,7 +120,12 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
         }
     };
     
-    // Add handler for template selection change
+    // FIX: Add handler for multi-select user IDs for Nota Dinas.
+    const handleTujuanUserIdsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData(prev => ({ ...prev, tujuanUserIds: value }));
+    };
+
     const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const templateId = e.target.value;
         setSelectedTemplateId(templateId);
@@ -255,35 +269,32 @@ const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
             setIsGenerating(false);
         }
     };
-
-    const handleAiDraftReply = async () => {
-        if (!poinBalasan || !initialData?.suratAsli) {
-            alert("Mohon isi poin-poin balasan untuk membuat draf AI.");
+    
+    const handleAiDraftReplyWithSearch = async () => {
+        if (!aiSearchQuery.trim()) {
+            alert("Mohon isi kueri pencarian untuk membuat draf AI.");
             return;
         }
         setIsGenerating(true);
+        setAiSearchResults(null);
         try {
             const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-            const { suratAsli } = initialData;
-            const prompt = `Anda adalah asisten administrasi yang profesional. Berdasarkan surat masuk berikut:
-- Perihal: "${suratAsli.perihal}"
-- Dari: "${suratAsli.pengirim}"
-- Tanggal Diterima: "${new Date(suratAsli.tanggalDiterima).toLocaleDateString('id-ID')}"
-
-Dan poin-poin balasan yang harus disampaikan berikut:
-"${poinBalasan}"
-
-Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indonesia. Mulai dengan sapaan pembuka dan akhiri dengan penutup, tanpa perlu menyertakan bagian kop, nomor, atau tanda tangan.`;
-
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: prompt,
+                contents: aiSearchQuery,
+                config: {
+                    tools: [{googleSearch: {}}],
+                },
             });
 
-            setFormData(prev => ({ ...prev, ringkasan: response.text.trim() }));
+            const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+            const content = response.text.trim();
+            setAiSearchResults({ sources, content });
+            setFormData(prev => ({ ...prev, ringkasan: content }));
+
         } catch (error) {
-            console.error("AI draft reply failed:", error);
-            alert("Gagal membuat draf balasan dengan AI.");
+            console.error("AI draft reply with search failed:", error);
+            alert("Gagal membuat draf balasan dengan AI. Pastikan format kueri Anda benar.");
         } finally {
             setIsGenerating(false);
         }
@@ -293,6 +304,8 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
         e.preventDefault();
         const fullData = { ...formData, attachments };
         
+        // FIX: Error on line 293. With proper conditional rendering and state management for each 'tipe', 
+        // this spread should now correctly create an object that matches one of the types in AnySurat.
         if (suratToEdit) {
             const updatedSurat: AnySurat = {
                 ...suratToEdit,
@@ -301,7 +314,7 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
             onSubmit(updatedSurat);
         } else {
              if (tipe === TipeSurat.MASUK) {
-                // FIX: Add 'komentar' to Omit type to match expected type by parent component
+                // FIX: Error on line 300. Add missing properties `tugasTerkait` and `dokumenTerkait` as required by `SuratBase`.
                 const newSurat: Omit<SuratMasuk, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'komentar'> = {
                     nomorSurat: fullData.nomorSurat || '',
                     tanggal: fullData.tanggal || '',
@@ -312,11 +325,29 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                     pengirim: fullData.pengirim || '',
                     tanggalDiterima: fullData.tanggalDiterima || '',
                     isiRingkasAI: fullData.isiRingkasAI,
-                    attachments: fullData.attachments
+                    attachments: fullData.attachments,
+                    tugasTerkait: [],
+                    dokumenTerkait: [],
+                };
+                onSubmit(newSurat);
+            } else if (tipe === TipeSurat.NOTA_DINAS) {
+                // FIX: Add logic to create a new NotaDinas object.
+                const newSurat: Omit<NotaDinas, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'status' | 'komentar' | 'pembuat'> = {
+                    nomorSurat: fullData.nomorSurat || '',
+                    tanggal: fullData.tanggal || '',
+                    perihal: fullData.perihal || '',
+                    kategoriId: fullData.kategoriId || '',
+                    sifat: fullData.sifat || SifatSurat.BIASA,
+                    tipe: TipeSurat.NOTA_DINAS,
+                    tujuanUserIds: fullData.tujuanUserIds || [],
+                    ringkasan: fullData.ringkasan || '',
+                    attachments: fullData.attachments,
+                    tugasTerkait: [],
+                    dokumenTerkait: [],
                 };
                 onSubmit(newSurat);
             } else { // KELUAR
-                // FIX: Removed 'tandaTangan' from Omit as it's an optional property not provided by the form, resolving a type error.
+                // FIX: Error on line 314. Add missing properties `tugasTerkait` and `dokumenTerkait` as required by `SuratBase`.
                 const newSurat: Omit<SuratKeluar, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar'> = {
                     nomorSurat: fullData.nomorSurat || '',
                     tanggal: fullData.tanggal || '',
@@ -332,7 +363,9 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                     klasifikasiId: fullData.klasifikasiId || '',
                     ringkasan: fullData.ringkasan || '',
                     suratAsliId: fullData.suratAsliId,
-                    attachments: fullData.attachments
+                    attachments: fullData.attachments,
+                    tugasTerkait: [],
+                    dokumenTerkait: [],
                 };
                 onSubmit(newSurat);
             }
@@ -342,12 +375,11 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
 
 
     const isEditMode = !!suratToEdit;
-    const title = `${isEditMode ? 'Edit' : 'Tambah'} Surat ${tipe === TipeSurat.MASUK ? 'Masuk' : 'Keluar'}`;
+    const title = `${isEditMode ? 'Edit' : 'Tambah'} Surat ${tipe === TipeSurat.MASUK ? 'Masuk' : tipe === TipeSurat.KELUAR ? 'Keluar' : 'Nota Dinas'}`;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title} size="2xl">
             <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Add Template Selector */}
                 {tipe === TipeSurat.KELUAR && props.allTemplates && !isEditMode && (
                     <div>
                         <label className="block text-sm font-medium text-slate-700">Gunakan Template</label>
@@ -372,7 +404,7 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                         {tipe === TipeSurat.MASUK && (
                              <button type="button" onClick={handleAiAssist} disabled={isGenerating || !formData.isiRingkasAI} className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center bg-slate-700 text-white px-2 py-1 rounded-md hover:bg-slate-800 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                                 <SparklesIcon className="w-4 h-4 mr-1" />
-                                {isGenerating ? 'Memproses...' : 'Bantuan AI'}
+                                {isGenerating ? 'Memproses...' : 'Dapatkan Saran AI'}
                             </button>
                         )}
                     </div>
@@ -391,6 +423,7 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                     </div>
                 </div>
                 
+                {/* FIX: Add conditional rendering for each surat type to show correct form fields. */}
                 {tipe === TipeSurat.MASUK ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          <div>
@@ -406,6 +439,33 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                             <input type="date" name="tanggalDiterima" value={formData.tanggalDiterima || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
                         </div>
                     </div>
+                ) : tipe === TipeSurat.NOTA_DINAS ? (
+                     <>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700">Nomor Nota Dinas</label>
+                            <input type="text" name="nomorSurat" value={formData.nomorSurat || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700">Tujuan Internal</label>
+                            <select
+                                name="tujuanUserIds"
+                                multiple
+                                value={formData.tujuanUserIds || []}
+                                onChange={handleTujuanUserIdsChange}
+                                required
+                                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md h-32"
+                            >
+                                {props.allUsers?.filter(u => u.id !== props.currentUser.id).map(u => (
+                                    <option key={u.id} value={u.id}>{u.nama} ({u.jabatan})</option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-slate-500 mt-1">Tahan Ctrl (atau Cmd di Mac) untuk memilih beberapa tujuan.</p>
+                        </div>
+                        <div>
+                           <label className="block text-sm font-medium text-slate-700">Isi Nota Dinas (Ringkasan)</label>
+                           <textarea name="ringkasan" value={formData.ringkasan || ''} onChange={handleChange} rows={5} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                       </div>
+                    </>
                 ) : ( // SURAT KELUAR
                     <>
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -446,23 +506,38 @@ Buatkan draf isi surat balasan yang lengkap, formal, dan sopan dalam Bahasa Indo
                             <label className="block text-sm font-medium text-slate-700">Tujuan</label>
                             <input type="text" name="tujuan" value={formData.tujuan || ''} onChange={handleChange} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
                         </div>
-                        {initialData?.suratAsli && (
-                             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-                                <h4 className="text-sm font-semibold text-blue-800">Membalas Surat:</h4>
-                                <p className="text-xs text-slate-600">
-                                    <span className="font-bold">Perihal:</span> {initialData.suratAsli.perihal} <br/>
-                                    <span className="font-bold">Dari:</span> {initialData.suratAsli.pengirim}
-                                </p>
-                                <label className="block text-sm font-medium text-slate-700 pt-2">Poin-poin utama balasan</label>
-                                <textarea value={poinBalasan} onChange={e => setPoinBalasan(e.target.value)} rows={3} placeholder="Contoh: Setujui permohonan, jadwalkan rapat hari Jumat pukul 10.00, minta data tambahan." className="block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
-                                <div className="text-right">
-                                    <button type="button" onClick={handleAiDraftReply} disabled={isGenerating || !poinBalasan} className="inline-flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-                                        <SparklesIcon className="w-4 h-4 mr-2" />
-                                        {isGenerating ? 'Membuat...' : 'Buat Draf Isi Surat dengan AI'}
-                                    </button>
-                                </div>
+                        
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                            <h4 className="text-sm font-semibold text-blue-800">Buat Draf dengan Bantuan Google Search</h4>
+                            <p className="text-xs text-slate-600">Minta AI untuk membuat draf berdasarkan informasi terkini dari web.</p>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    value={aiSearchQuery} 
+                                    onChange={e => setAiSearchQuery(e.target.value)} 
+                                    placeholder="cth: buat surat edaran tentang peraturan perjalanan dinas 2024" 
+                                    className="block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                />
+                                <button type="button" onClick={handleAiDraftReplyWithSearch} disabled={isGenerating || !aiSearchQuery} className="inline-flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium disabled:opacity-50">
+                                    <SparklesIcon className="w-4 h-4 mr-2" />
+                                    {isGenerating ? 'Mencari...' : 'Buat Draf'}
+                                </button>
                             </div>
-                        )}
+                            {aiSearchResults && (
+                                <div className="mt-2 text-xs">
+                                    <p className="font-semibold">Sumber Informasi:</p>
+                                    <ul className="list-disc list-inside space-y-1">
+                                    {aiSearchResults.sources.map((source: any, index: number) => (
+                                        <li key={index}>
+                                            <a href={source.web.uri} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate" title={source.web.title}>
+                                                {source.web.title || source.web.uri}
+                                            </a>
+                                        </li>
+                                    ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+
                          <div>
                             <label className="block text-sm font-medium text-slate-700">Isi Surat (Ringkasan)</label>
                              <textarea name="ringkasan" value={formData.ringkasan || ''} onChange={handleChange} rows={5} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>

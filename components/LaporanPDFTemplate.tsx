@@ -1,19 +1,20 @@
 import React from 'react';
-import { AnySurat, KategoriSurat, KopSuratSettings, TipeSurat, UnitKerja, User } from '../types';
+import { AnySurat, KategoriSurat, KopSuratSettings, NotaDinas, TipeSurat, UnitKerja, User } from '../types';
 
 interface LaporanPDFTemplateProps {
     data: AnySurat[];
-    reportType: 'surat_masuk' | 'surat_keluar' | 'rekapitulasi';
+    reportType: 'surat_masuk' | 'surat_keluar' | 'nota_dinas' | 'rekapitulasi';
     startDate: string;
     endDate: string;
     allKategori: KategoriSurat[];
+    allUsers: User[];
     kopSuratSettings: KopSuratSettings;
     unitKerjaList: UnitKerja[];
     currentUser: User;
 }
 
 const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
-    const { data, reportType, startDate, endDate, kopSuratSettings, unitKerjaList, currentUser, allKategori } = props;
+    const { data, reportType, startDate, endDate, kopSuratSettings, unitKerjaList, currentUser, allKategori, allUsers } = props;
 
     const userUnitKerja = unitKerjaList.find(uk => uk.id === currentUser.unitKerjaId);
 
@@ -44,7 +45,8 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
         switch (reportType) {
             case 'surat_masuk': title = 'Laporan Surat Masuk'; break;
             case 'surat_keluar': title = 'Laporan Surat Keluar'; break;
-            case 'rekapitulasi': title = 'Laporan Rekapitulasi Surat'; break;
+            case 'nota_dinas': title = 'Laporan Nota Dinas'; break;
+            case 'rekapitulasi': title = 'Laporan Rekapitulasi Dokumen'; break;
         }
         return (
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
@@ -55,6 +57,22 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
     };
     
     const renderTable = () => {
+        const getTujuanOrPengirim = (surat: AnySurat) => {
+            if (surat.tipe === TipeSurat.MASUK) return surat.pengirim;
+            if (surat.tipe === TipeSurat.KELUAR) return surat.tujuan;
+            if (surat.tipe === TipeSurat.NOTA_DINAS) {
+                return surat.tujuanUserIds.map(id => allUsers.find(u => u.id === id)?.nama || id).join(', ');
+            }
+            return '-';
+        }
+
+        const headerLabel = {
+            surat_masuk: 'Pengirim',
+            surat_keluar: 'Tujuan Eksternal',
+            nota_dinas: 'Tujuan Internal'
+        }[reportType] || 'Pengirim/Tujuan';
+
+
         return (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
                 <thead>
@@ -63,7 +81,7 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
                          <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'left' }}>Nomor Surat</th>
                          <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'left' }}>Tanggal</th>
                          <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'left' }}>Perihal</th>
-                         <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'left' }}>{reportType === 'surat_masuk' ? 'Pengirim' : 'Tujuan'}</th>
+                         <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'left' }}>{headerLabel}</th>
                          <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'left' }}>Status</th>
                     </tr>
                 </thead>
@@ -74,7 +92,7 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
                             <td style={{ border: '1px solid #e2e8f0', padding: '6px' }}>{surat.nomorSurat}</td>
                             <td style={{ border: '1px solid #e2e8f0', padding: '6px' }}>{formatDate(surat.tanggal)}</td>
                             <td style={{ border: '1px solid #e2e8f0', padding: '6px' }}>{surat.perihal}</td>
-                            <td style={{ border: '1px solid #e2e8f0', padding: '6px' }}>{surat.tipe === TipeSurat.MASUK ? surat.pengirim : surat.tujuan}</td>
+                            <td style={{ border: '1px solid #e2e8f0', padding: '6px' }}>{getTujuanOrPengirim(surat)}</td>
                             <td style={{ border: '1px solid #e2e8f0', padding: '6px' }}>{surat.isArchived ? 'Diarsipkan' : 'Aktif'}</td>
                         </tr>
                     ))}
@@ -86,20 +104,19 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
     const renderRekapitulasi = () => {
         const totalMasuk = data.filter(s => s.tipe === TipeSurat.MASUK).length;
         const totalKeluar = data.filter(s => s.tipe === TipeSurat.KELUAR).length;
+        const totalNotaDinas = data.filter(s => s.tipe === TipeSurat.NOTA_DINAS).length;
         
-        const rekapKategori: { [key: string]: { masuk: number, keluar: number } } = {};
+        const rekapKategori: { [key: string]: { masuk: number, keluar: number, nota_dinas: number } } = {};
         allKategori.forEach(k => {
-            rekapKategori[k.nama] = { masuk: 0, keluar: 0 };
+            rekapKategori[k.nama] = { masuk: 0, keluar: 0, nota_dinas: 0 };
         });
 
         data.forEach(s => {
             const kategori = allKategori.find(k => k.id === s.kategoriId);
             if (kategori) {
-                if (s.tipe === TipeSurat.MASUK) {
-                    rekapKategori[kategori.nama].masuk++;
-                } else {
-                    rekapKategori[kategori.nama].keluar++;
-                }
+                if (s.tipe === TipeSurat.MASUK) rekapKategori[kategori.nama].masuk++;
+                else if (s.tipe === TipeSurat.KELUAR) rekapKategori[kategori.nama].keluar++;
+                else if (s.tipe === TipeSurat.NOTA_DINAS) rekapKategori[kategori.nama].nota_dinas++;
             }
         });
         
@@ -108,7 +125,8 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
                 <h4 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '12px' }}>Ringkasan Umum</h4>
                 <p>Total Surat Masuk: <strong>{totalMasuk}</strong></p>
                 <p>Total Surat Keluar: <strong>{totalKeluar}</strong></p>
-                <p>Total Keseluruhan Surat: <strong>{data.length}</strong></p>
+                <p>Total Nota Dinas: <strong>{totalNotaDinas}</strong></p>
+                <p>Total Keseluruhan Dokumen: <strong>{data.length}</strong></p>
                 
                 <h4 style={{ fontSize: '1rem', fontWeight: 'bold', marginTop: '24px', marginBottom: '12px' }}>Rincian Berdasarkan Kategori</h4>
                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -117,6 +135,7 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
                             <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'left' }}>Kategori</th>
                             <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center' }}>Surat Masuk</th>
                             <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center' }}>Surat Keluar</th>
+                            <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center' }}>Nota Dinas</th>
                             <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center' }}>Total</th>
                         </tr>
                     </thead>
@@ -126,7 +145,8 @@ const LaporanPDFTemplate: React.FC<LaporanPDFTemplateProps> = (props) => {
                                 <td style={{ border: '1px solid #e2e8f0', padding: '6px' }}>{nama}</td>
                                 <td style={{ border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' }}>{counts.masuk}</td>
                                 <td style={{ border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' }}>{counts.keluar}</td>
-                                <td style={{ border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' }}><strong>{counts.masuk + counts.keluar}</strong></td>
+                                <td style={{ border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' }}>{counts.nota_dinas}</td>
+                                <td style={{ border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' }}><strong>{counts.masuk + counts.keluar + counts.nota_dinas}</strong></td>
                             </tr>
                         ))}
                     </tbody>

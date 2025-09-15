@@ -9,12 +9,13 @@ declare const html2pdf: any;
 interface LaporanProps {
     allSurat: AnySurat[];
     allKategori: KategoriSurat[];
+    allUsers: User[];
     kopSuratSettings: KopSuratSettings;
     unitKerjaList: UnitKerja[];
     currentUser: User;
 }
 
-type ReportType = 'surat_masuk' | 'surat_keluar' | 'rekapitulasi';
+type ReportType = 'surat_masuk' | 'surat_keluar' | 'nota_dinas' | 'rekapitulasi';
 
 const Laporan: React.FC<LaporanProps> = (props) => {
     const [reportType, setReportType] = useState<ReportType>('surat_masuk');
@@ -39,6 +40,7 @@ const Laporan: React.FC<LaporanProps> = (props) => {
 
             if (reportType === 'surat_masuk') return s.tipe === TipeSurat.MASUK;
             if (reportType === 'surat_keluar') return s.tipe === TipeSurat.KELUAR;
+            if (reportType === 'nota_dinas') return s.tipe === TipeSurat.NOTA_DINAS;
             return true; // For rekapitulasi, include all within date range
         });
         
@@ -79,6 +81,7 @@ const Laporan: React.FC<LaporanProps> = (props) => {
                         <select value={reportType} onChange={e => setReportType(e.target.value as ReportType)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 bg-white">
                             <option value="surat_masuk">Laporan Surat Masuk</option>
                             <option value="surat_keluar">Laporan Surat Keluar</option>
+                            <option value="nota_dinas">Laporan Nota Dinas</option>
                             <option value="rekapitulasi">Rekapitulasi Surat</option>
                         </select>
                     </div>

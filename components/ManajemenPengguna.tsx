@@ -93,7 +93,6 @@ const UserFormModal: React.FC<{
                      <div>
                         <label htmlFor="role" className="block text-sm font-medium text-slate-700">Peran (Role)</label>
                         <select id="role" value={role} onChange={e => setRole(e.target.value as UserRole)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500">
-                           {/* FIX: Add explicit string casting for key and value to prevent type errors */}
                            {availableRoles.map(r => <option key={r as string} value={r as string}>{r}</option>)}
                         </select>
                     </div>

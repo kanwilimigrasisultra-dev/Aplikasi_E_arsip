@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, UnitKerja, KategoriSurat, ActivityLog, UserRole, KlasifikasiSurat, MasalahUtama, KebijakanRetensi, TemplateSurat, Pengumuman } from '../types';
+import { User, UnitKerja, KategoriSurat, ActivityLog, UserRole, KlasifikasiSurat, MasalahUtama, KebijakanRetensi, TemplateSurat, Pengumuman, AnySurat } from '../types';
 import ManajemenPengguna from './ManajemenPengguna';
 import ManajemenKategori from './ManajemenKategori';
 import ManajemenUnitKerja from './ManajemenUnitKerja';
@@ -9,6 +9,7 @@ import ManajemenMasalahUtama from './ManajemenMasalahUtama';
 import ManajemenRetensi from './ManajemenRetensi';
 import ManajemenTemplate from './ManajemenTemplate';
 import ManajemenPengumuman from './ManajemenPengumuman';
+import ManajemenAnalitik from './ManajemenAnalitik';
 
 interface AdministrasiProps {
     users: User[];
@@ -24,18 +25,20 @@ interface AdministrasiProps {
     onPengumumanDelete: (pengumumanId: string) => void;
     activityLogs: ActivityLog[];
     currentUser: User;
+    allSurat: AnySurat[];
 }
 
-type AdminTab = 'pengguna' | 'unit' | 'kategori' | 'masalah' | 'klasifikasi' | 'retensi' | 'template' | 'pengumuman' | 'log';
+type AdminTab = 'pengguna' | 'unit' | 'kategori' | 'masalah' | 'klasifikasi' | 'retensi' | 'template' | 'pengumuman' | 'log' | 'analitik';
 
 const Administrasi: React.FC<AdministrasiProps> = (props) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('pengguna');
 
     const isSuperAdmin = props.currentUser.role === UserRole.SUPER_ADMIN;
+    const isPimpinan = props.currentUser.role === UserRole.PIMPINAN;
     
-    // Check if user is an Admin/Super Admin AND belongs to a central office ('Pusat')
     const userUnit = props.unitKerjaList.find(u => u.id === props.currentUser.unitKerjaId);
-    const canManageAnnouncements = (props.currentUser.role === UserRole.ADMIN || props.currentUser.role === UserRole.SUPER_ADMIN) && userUnit?.tipe === 'Pusat';
+    const canManageAnnouncements = (props.currentUser.role === UserRole.ADMIN || isSuperAdmin) && userUnit?.tipe === 'Pusat';
+    const canViewAnalytics = isSuperAdmin || isPimpinan;
 
 
     // Super Admin sees all users and units. Local admin sees only their own.
@@ -139,6 +142,9 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
                 );
             case 'log':
                 return <LogAktivitas activityLogs={visibleLogs} />;
+            case 'analitik':
+                if (!canViewAnalytics) return null;
+                return <ManajemenAnalitik allSurat={props.allSurat} allUsers={props.users} unitKerjaList={props.unitKerjaList} />;
             default:
                 return null;
         }
@@ -176,6 +182,7 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
                         </>
                     )}
                     <TabButton tabId="log" label="Log Aktivitas" />
+                    {canViewAnalytics && <TabButton tabId="analitik" label="Analitik & Wawasan" />}
                 </nav>
             </div>
 

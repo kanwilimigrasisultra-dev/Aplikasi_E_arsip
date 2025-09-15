@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { AnySurat, SuratMasuk, SuratKeluar, TipeSurat, KategoriSurat, User, SifatDisposisi, StatusDisposisi, KopSuratSettings, AppSettings, UnitKerja, SignatureMethod, MasalahUtama, KlasifikasiSurat, ApprovalStep } from '../types';
+import { AnySurat, SuratMasuk, SuratKeluar, TipeSurat, KategoriSurat, User, SifatDisposisi, StatusDisposisi, KopSuratSettings, AppSettings, UnitKerja, SignatureMethod, MasalahUtama, KlasifikasiSurat, ApprovalStep, Tugas, NotaDinas } from '../types';
 import Modal from './Modal';
-import { ArchiveIcon, CheckCircleIcon, ClockIcon, LinkIcon, PencilAltIcon, PlusIcon, PrinterIcon, SparklesIcon, PaperClipIcon, UsersIcon, TrashIcon } from './icons';
+import { ArchiveIcon, CheckCircleIcon, ClockIcon, LinkIcon, PencilAltIcon, PlusIcon, PrinterIcon, SparklesIcon, PaperClipIcon, UsersIcon, TrashIcon, ShieldCheckIcon } from './icons';
 import SuratPrintModal from './SuratPrintModal';
 import LembarDisposisiPrintModal from './LembarDisposisiPrintModal';
 // Note: In a real app, you would use a proper signature pad library
@@ -28,9 +28,47 @@ interface SuratDetailModalProps {
   onKirimUntukPersetujuan?: (suratId: string) => void;
   onPersetujuan?: (suratId: string, stepId: string, decision: 'Disetujui' | 'Ditolak', notes: string) => void;
   onReplyWithAI: (surat: SuratMasuk) => void;
-  // FIX: Add missing onAddKomentar prop
   onAddKomentar: (suratId: string, teks: string) => void;
+  onAddTask: (tugas: Omit<Tugas, 'id'>) => void;
 }
+
+const TTESimulationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void }> = ({ isOpen, onClose, onConfirm }) => {
+    const [step, setStep] = useState(1);
+
+    React.useEffect(() => {
+        if (isOpen) {
+            setStep(1);
+            setTimeout(() => setStep(2), 2000);
+            setTimeout(() => {
+                setStep(3);
+                onConfirm(); // Simulate successful signing
+            }, 4000);
+            setTimeout(() => onClose(), 5500); // Close modal after success message
+        }
+    }, [isOpen, onConfirm, onClose]);
+
+    const renderStepContent = () => {
+        switch (step) {
+            case 1:
+                return <><svg className="animate-spin h-8 w-8 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p className="mt-3">Mengarahkan ke layanan TTE tersertifikasi...</p></>;
+            case 2:
+                return <><ClockIcon className="h-8 w-8 text-amber-500" /><p className="mt-3">Menunggu tanda tangan Anda...</p></>;
+            case 3:
+                return <><CheckCircleIcon className="h-8 w-8 text-emerald-500" /><p className="mt-3">Dokumen berhasil disahkan secara digital!</p></>;
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Simulasi Tanda Tangan Elektronik" size="sm">
+            <div className="flex flex-col items-center justify-center h-32 text-slate-600">
+                {renderStepContent()}
+            </div>
+        </Modal>
+    );
+};
+
 
 const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
     const { isOpen, onClose, surat } = props;
@@ -38,6 +76,7 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
     const [isPrintModalOpen, setPrintModalOpen] = useState(false);
     const [isDisposisiPrintModalOpen, setDisposisiPrintModalOpen] = useState(false);
     const [isSigning, setIsSigning] = useState(false);
+    const [isTTEModalOpen, setTTEModalOpen] = useState(false);
     
     let sigPad = React.useRef<SignaturePad>(null);
 
@@ -61,11 +100,6 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
     }
     
     const renderDetailInfo = () => {
-        const suratKeluar = surat as SuratKeluar;
-        const suratAsli = suratKeluar.suratAsliId ? props.allSurat.find(s => s.id === suratKeluar.suratAsliId) as SuratMasuk : null;
-        const masalahUtama = isSuratKeluar ? props.masalahUtamaList?.find(m => m.id === surat.masalahUtamaId) : null;
-        const klasifikasi = isSuratKeluar ? props.klasifikasiList?.find(k => k.id === surat.klasifikasiId) : null;
-
         return (
             <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
@@ -81,28 +115,41 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
                             <InfoItem label="Pengirim" value={surat.pengirim} />
                             <InfoItem label="Tanggal Diterima" value={new Date(surat.tanggalDiterima).toLocaleDateString('id-ID')} />
                         </>
-                    ) : (
+                    ) : null}
+                    {isSuratKeluar ? (
                         <>
                             <InfoItem label="Tujuan" value={surat.tujuan} />
                             <InfoItem label="Pembuat" value={surat.pembuat.nama} />
                             <InfoItem label="Jenis Surat" value={surat.jenisSuratKeluar} />
                              <div className="md:col-span-2">
-                                <InfoItem label="Klasifikasi Arsip" value={`${klasifikasi?.kode || ''} - ${klasifikasi?.deskripsi || 'N/A'}`} />
+                                <InfoItem label="Klasifikasi Arsip" value={`${props.klasifikasiList?.find(k => k.id === surat.klasifikasiId)?.kode || ''} - ${props.klasifikasiList?.find(k => k.id === surat.klasifikasiId)?.deskripsi || 'N/A'}`} />
                             </div>
                             <div className="md:col-span-2">
                                 <InfoItem label="Isi Surat (Ringkasan)" value={surat.ringkasan} />
                             </div>
-                            {suratAsli && (
-                                <div className="md:col-span-2 mt-2 p-3 bg-slate-50 border rounded-md">
-                                    <p className="text-xs font-semibold text-slate-600 flex items-center">
-                                        <LinkIcon className="w-4 h-4 mr-2" />
-                                        Surat ini adalah balasan untuk:
-                                    </p>
-                                    <p className="text-sm text-slate-800 pl-6 mt-1">
-                                        <span className="font-medium">{suratAsli.nomorSurat}</span> - {suratAsli.perihal}
-                                    </p>
-                                </div>
-                            )}
+                            {surat.suratAsliId && (() => {
+                                const suratAsli = props.allSurat.find(s => s.id === surat.suratAsliId) as SuratMasuk;
+                                return suratAsli ? (
+                                    <div className="md:col-span-2 mt-2 p-3 bg-slate-50 border rounded-md">
+                                        <p className="text-xs font-semibold text-slate-600 flex items-center">
+                                            <LinkIcon className="w-4 h-4 mr-2" />
+                                            Surat ini adalah balasan untuk:
+                                        </p>
+                                        <p className="text-sm text-slate-800 pl-6 mt-1">
+                                            <span className="font-medium">{suratAsli.nomorSurat}</span> - {suratAsli.perihal}
+                                        </p>
+                                    </div>
+                                ) : null;
+                            })()}
+                        </>
+                    ) : null}
+                    {surat.tipe === TipeSurat.NOTA_DINAS && (
+                         <>
+                            <InfoItem label="Tujuan" value={surat.tujuanUserIds.map(id => props.allUsers.find(u => u.id === id)?.nama).filter(Boolean).join(', ')} />
+                            <InfoItem label="Pembuat" value={surat.pembuat.nama} />
+                             <div className="md:col-span-2">
+                                <InfoItem label="Isi Nota Dinas (Ringkasan)" value={surat.ringkasan} />
+                            </div>
                         </>
                     )}
                 </div>
@@ -150,10 +197,23 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
         }
         
         return (
-            <div>
+            <div className="space-y-4">
+                <button 
+                    onClick={() => setTTEModalOpen(true)} 
+                    className="w-full flex items-center justify-center bg-sky-600 text-white px-4 py-3 rounded-lg hover:bg-sky-700 transition-colors shadow-lg font-semibold"
+                >
+                    <ShieldCheckIcon className="w-5 h-5 mr-2" />
+                    Sahkan dengan TTE Tersertifikasi (Simulasi)
+                </button>
+
+                 <div className="relative">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-gray-300" /></div>
+                    <div className="relative flex justify-center"><span className="px-2 bg-white text-sm text-gray-500">Atau gunakan metode lain</span></div>
+                </div>
+
                  <button onClick={() => setIsSigning(true)} className="w-full flex items-center justify-center bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow">
                     <PencilAltIcon className="w-5 h-5 mr-2" />
-                    {useQR ? 'Sahkan dengan QR Code' : 'Tambahkan Tanda Tangan'}
+                    {useQR ? 'Sahkan dengan QR Code Internal' : 'Tambahkan Tanda Tangan Gambar'}
                 </button>
                 {isSigning && (
                     <div className="mt-4 border-t pt-4">
@@ -219,36 +279,38 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
 
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Detail Surat" size="3xl">
-            <div className="space-y-6">
-                {renderActionButtons()}
+        <>
+            <Modal isOpen={isOpen} onClose={onClose} title="Detail Surat" size="3xl">
+                <div className="space-y-6">
+                    {renderActionButtons()}
 
-                <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                        <TabButton label="Detail Surat" isActive={activeTab === 'detail'} onClick={() => setActiveTab('detail')} />
-                        {isSuratMasuk && <TabButton label="Disposisi" isActive={activeTab === 'disposisi'} onClick={() => setActiveTab('disposisi')} />}
-                        {isSuratKeluar && <TabButton label={`Riwayat & Persetujuan (v${surat.version})`} isActive={activeTab === 'approval'} onClick={() => setActiveTab('approval')} />}
-                        {isSuratKeluar && <TabButton label="Tanda Tangan" isActive={activeTab === 'ttd'} onClick={() => setActiveTab('ttd')} disabled={surat.status !== 'Disetujui'} />}
-                        {/* Add Komentar Tab */}
-                        <TabButton label="Komentar" isActive={activeTab === 'komentar'} onClick={() => setActiveTab('komentar')} />
-                    </nav>
+                    <div className="border-b border-gray-200">
+                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                            <TabButton label="Detail Surat" isActive={activeTab === 'detail'} onClick={() => setActiveTab('detail')} />
+                            {isSuratMasuk && <TabButton label="Disposisi" isActive={activeTab === 'disposisi'} onClick={() => setActiveTab('disposisi')} />}
+                            {isSuratKeluar && <TabButton label={`Riwayat & Persetujuan (v${surat.version})`} isActive={activeTab === 'approval'} onClick={() => setActiveTab('approval')} />}
+                            {isSuratKeluar && <TabButton label="Tanda Tangan" isActive={activeTab === 'ttd'} onClick={() => setActiveTab('ttd')} disabled={surat.status !== 'Disetujui'} />}
+                            <TabButton label="Komentar" isActive={activeTab === 'komentar'} onClick={() => setActiveTab('komentar')} />
+                        </nav>
+                    </div>
+                    
+                    <div className="pt-2">
+                        {activeTab === 'detail' && renderDetailInfo()}
+                        {activeTab === 'disposisi' && renderDisposisi()}
+                        {activeTab === 'approval' && renderApprovalAndHistory()}
+                        {activeTab === 'ttd' && renderTandaTangan()}
+                        {activeTab === 'komentar' && <KomentarSection {...props} />}
+                    </div>
                 </div>
-                
-                <div className="pt-2">
-                    {activeTab === 'detail' && renderDetailInfo()}
-                    {activeTab === 'disposisi' && renderDisposisi()}
-                    {activeTab === 'approval' && renderApprovalAndHistory()}
-                    {activeTab === 'ttd' && renderTandaTangan()}
-                    {/* Render Komentar Section */}
-                    {activeTab === 'komentar' && <KomentarSection {...props} />}
-                </div>
-            </div>
-            {/* FIX: Pass currentUser prop to SuratPrintModal */}
+            </Modal>
             {isPrintModalOpen && <SuratPrintModal isOpen={isPrintModalOpen} onClose={() => setPrintModalOpen(false)} surat={surat} kopSuratSettings={props.kopSuratSettings} unitKerjaList={props.unitKerjaList} currentUser={props.currentUser} />}
             {isDisposisiPrintModalOpen && isSuratMasuk && <LembarDisposisiPrintModal isOpen={isDisposisiPrintModalOpen} onClose={() => setDisposisiPrintModalOpen(false)} surat={surat as SuratMasuk} currentUser={props.currentUser} kopSuratSettings={props.kopSuratSettings} unitKerjaList={props.unitKerjaList} />}
-        </Modal>
+            <TTESimulationModal isOpen={isTTEModalOpen} onClose={() => setTTEModalOpen(false)} onConfirm={() => props.onTambahTandaTangan(surat.id, 'SIGNED_WITH_TTE')} />
+        </>
     );
 };
+
+// ... (Rest of the components: DisposisiSection, ApprovalAndHistorySection, etc. remain unchanged)
 
 const DisposisiSection: React.FC<SuratDetailModalProps> = ({ surat, allUsers, currentUser, onAddDisposisi, onUpdateDisposisiStatus }) => {
     const [showForm, setShowForm] = useState(false);
@@ -433,10 +495,8 @@ const ApprovalAndHistorySection: React.FC<SuratDetailModalProps> = ({ surat, cur
     )
 }
 
-// Add Komentar Section
 const KomentarSection: React.FC<SuratDetailModalProps> = ({ surat, onAddKomentar, currentUser }) => {
     const [teks, setTeks] = useState('');
-    // Sort comments, newest first
     const sortedKomentar = [...surat.komentar].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     const handleSubmit = (e: React.FormEvent) => {

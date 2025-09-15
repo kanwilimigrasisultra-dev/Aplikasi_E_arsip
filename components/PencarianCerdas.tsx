@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import { AnySurat, KategoriSurat, TipeSurat, SifatSurat } from '../types';
+import { AnySurat, KategoriSurat, TipeSurat, SifatSurat, NotaDinas, SuratMasuk, SuratKeluar } from '../types';
 import { SearchIcon, SparklesIcon } from './icons';
 
 interface PencarianCerdasProps {
@@ -42,12 +42,18 @@ const PencarianCerdas: React.FC<PencarianCerdasProps> = ({ allSurat, kategoriLis
                     id: s.id,
                     type: s.tipe,
                     subject: s.perihal,
-                    from: s.tipe === TipeSurat.MASUK ? s.pengirim : s.pembuat.nama,
+                    from: s.tipe === TipeSurat.MASUK ? s.pengirim : (s as SuratKeluar | NotaDinas).pembuat.nama,
                     to: s.tipe === TipeSurat.KELUAR ? s.tujuan : 'Internal',
                 };
                 // If searchInContent is true, include the summary/content for the AI to analyze
                 if (searchInContent) {
-                    baseData.content = s.tipe === TipeSurat.KELUAR ? s.ringkasan : (s.isiRingkasAI || '');
+                    if (s.tipe === TipeSurat.KELUAR) {
+                        baseData.content = s.ringkasan;
+                    } else if (s.tipe === TipeSurat.MASUK) {
+                        baseData.content = s.isiRingkasAI || '';
+                    } else if (s.tipe === TipeSurat.NOTA_DINAS) {
+                        baseData.content = s.ringkasan || '';
+                    }
                 }
                 return baseData;
             });

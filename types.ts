@@ -1,6 +1,7 @@
 export enum TipeSurat {
   MASUK = 'MASUK',
   KELUAR = 'KELUAR',
+  NOTA_DINAS = 'NOTA_DINAS',
 }
 
 export enum SifatSurat {
@@ -129,6 +130,23 @@ export interface Disposisi {
   riwayatStatus: { status: StatusDisposisi, tanggal: string, oleh?: User }[];
 }
 
+export interface Tugas {
+  id: string;
+  suratId: string;
+  deskripsi: string;
+  ditugaskanKepada: User;
+  tanggalJatuhTempo: string;
+  status: 'Belum Dikerjakan' | 'Dikerjakan' | 'Selesai';
+  dibuatOleh: User;
+}
+
+export interface DokumenTerkait {
+    id: string;
+    suratAsalId: string;
+    suratTerkaitId: string;
+    tipeHubungan: string; // e.g., 'Jawaban', 'Lampiran Pendukung', 'Tindak Lanjut'
+}
+
 interface SuratBase {
   id: string;
   nomorSurat: string;
@@ -143,6 +161,8 @@ interface SuratBase {
   unitKerjaId: string; // Unit kerja yang membuat/menerima surat ini
   attachments?: Attachment[];
   komentar: Komentar[];
+  tugasTerkait: Tugas[];
+  dokumenTerkait: DokumenTerkait[];
 }
 
 export interface SuratMasuk extends SuratBase {
@@ -170,7 +190,15 @@ export interface SuratKeluar extends SuratBase {
   approvalChain: ApprovalStep[];
 }
 
-export type AnySurat = SuratMasuk | SuratKeluar;
+export interface NotaDinas extends SuratBase {
+    tipe: TipeSurat.NOTA_DINAS;
+    tujuanUserIds: string[];
+    pembuat: User;
+    status: 'Draf' | 'Terkirim';
+    ringkasan: string;
+}
+
+export type AnySurat = SuratMasuk | SuratKeluar | NotaDinas;
 
 export interface FolderArsip {
   id: string;
@@ -240,3 +268,10 @@ export interface KebijakanRetensi {
     masaRetensiInaktif: number; // In years
     tindakanFinal: 'Musnahkan' | 'Permanen';
 }
+
+export type DashboardWidgetSettings = {
+    stats: boolean;
+    chart: boolean;
+    recent: boolean;
+    tasks: boolean;
+};
