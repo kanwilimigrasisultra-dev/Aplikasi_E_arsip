@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
     mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockFolders, mockNotifikasi, mockActivityLogs, mockKopSuratSettings, mockAppSettings,
@@ -8,7 +9,7 @@ import {
     User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat, SuratMasuk, SuratKeluar,
     FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings,
     PenomoranSettings, BrandingSettings, KebijakanRetensi, TipeSurat, SifatDisposisi,
-    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardLayoutSettings, PermintaanLaporan, PengirimanLaporan, Tiket, PerjalananDinas, ChatRoom, ChatMessage
+    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardLayoutSettings, PermintaanLaporan, PengirimanLaporan, Tiket, PerjalananDinas, ChatRoom, ChatMessage, Disposisi, Komentar
 } from './types';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
@@ -87,12 +88,7 @@ const App: React.FC = () => {
     const [folders, setFolders] = useState<FolderArsip[]>(mockFolders);
     const [notifications, setNotifications] = useState<Notifikasi[]>(mockNotifikasi);
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(mockActivityLogs);
-    const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>(mockPengumuman.filter(p => {
-        const now = new Date();
-        const endDate = new Date(p.tanggalSelesai);
-        endDate.setHours(23, 59, 59, 999);
-        return p.isActive && now <= endDate;
-    }));
+    const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>(mockPengumuman);
     const [allTugas, setAllTugas] = useState<Tugas[]>(mockTugas);
     const [templates, setTemplates] = useState<TemplateSurat[]>(mockTemplates);
     const [permintaanLaporanList, setPermintaanLaporanList] = useState<PermintaanLaporan[]>(mockPermintaanLaporan);
@@ -120,16 +116,15 @@ const App: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<Page>('dashboard');
     const [replyingSurat, setReplyingSurat] = useState<(Partial<SuratKeluar> & { suratAsli?: SuratMasuk }) | null>(null);
 
-    // --- HANDLERS ---
-    const handleLogin = (email: string) => {
-        const user = allUsers.find(u => u.email === email);
+    // FIX: Added login handler function.
+    const handleLogin = useCallback((email: string) => {
+        const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user) {
             setCurrentUser(user);
-        } else {
-            alert('User not found!');
         }
-    };
-    
+    }, [allUsers]);
+
+    // --- UTILITY & NOTIFICATION HANDLERS ---
     const logActivity = useCallback((action: string) => {
         if (currentUser) {
             const newLog: ActivityLog = { id: `log-${Date.now()}`, user: currentUser.nama, action, timestamp: new Date().toISOString() };
@@ -137,18 +132,35 @@ const App: React.FC = () => {
         }
     }, [currentUser]);
 
+    const createNotification = useCallback((userId: string, suratId: string, pesan: string) => {
+        const newNotif: Notifikasi = {
+            id: `notif-${Date.now()}`,
+            suratId,
+            pesan,
+            tanggal: new Date().toISOString(),
+            isRead: false,
+        };
+        // In a real app, this would be targeted to the specific user. Here we add it to a global list.
+        setNotifications(prev => [newNotif, ...prev]);
+    }, []);
+
+    // --- DATA RESET HANDLER ---
     const handleResetData = useCallback(() => {
         setAllSurat([]);
         setAllTugas([]);
+        setPerjalananDinasList([]);
         logActivity("Melakukan reset data surat, disposisi, dan tugas.");
-        alert("Semua data surat, disposisi, dan tugas telah direset.");
+        alert("Semua data surat, disposisi, tugas, dan perjalanan dinas telah direset.");
     }, [logActivity]);
+    
+    // --- UNIVERSAL UPDATE HANDLER ---
+    const handleSuratUpdate = useCallback((updatedSurat: AnySurat) => {
+        setAllSurat(prev => prev.map(s => s.id === updatedSurat.id ? updatedSurat : s));
+    }, []);
 
-
-    // FIX: Changed parameter type to `any` and added type assertions to fix complex type issues.
+    // --- SURAT & RELATED ITEMS HANDLERS ---
     const handleSuratSubmit = (surat: any) => {
         const nextNomorAgenda = allSurat.length > 0 ? Math.max(...allSurat.map(s => s.nomorAgenda || 0)) + 1 : 1;
-
         const baseProps = {
             id: `${surat.tipe === TipeSurat.MASUK ? 'sm' : (surat.tipe === TipeSurat.KELUAR ? 'sk' : 'nd')}-${Date.now()}`,
             isArchived: false,
@@ -159,27 +171,15 @@ const App: React.FC = () => {
             tugasTerkait: [],
             dokumenTerkait: [],
         };
-
         let newSurat: AnySurat;
-
         if (surat.tipe === TipeSurat.MASUK) {
-            newSurat = {
-                ...surat,
-                ...baseProps,
-                disposisi: [],
-            } as SuratMasuk;
+            newSurat = { ...surat, ...baseProps, disposisi: [] } as SuratMasuk;
         } else if (surat.tipe === TipeSurat.KELUAR) {
             const manajerialApprover = allUsers.find(u => u.role === UserRole.MANAJERIAL);
             const pimpinanApprover = allUsers.find(u => u.role === UserRole.PIMPINAN);
             const approvalChain: ApprovalStep[] = [];
-
-            if (manajerialApprover) {
-                approvalChain.push({ id: `app-${Date.now()}-1`, approver: manajerialApprover, status: 'Menunggu', order: 1 });
-            }
-            if (pimpinanApprover) {
-                approvalChain.push({ id: `app-${Date.now()}-2`, approver: pimpinanApprover, status: 'Menunggu', order: 2 });
-            }
-
+            if (manajerialApprover) approvalChain.push({ id: `app-${Date.now()}-1`, approver: manajerialApprover, status: 'Menunggu', order: 1 });
+            if (pimpinanApprover) approvalChain.push({ id: `app-${Date.now()}-2`, approver: pimpinanApprover, status: 'Menunggu', order: 2 });
             let perjalananDinasId: string | undefined = undefined;
             if (surat.jenisSuratKeluar === 'SPPD' && surat.perjalananDinasData) {
                 const newPerjalananDinas: PerjalananDinas = {
@@ -191,38 +191,15 @@ const App: React.FC = () => {
                 perjalananDinasId = newPerjalananDinas.id;
                 setPerjalananDinasList(prev => [newPerjalananDinas, ...prev]);
             }
-            
-            newSurat = {
-                ...surat,
-                ...baseProps,
-                status: 'Draf',
-                version: 1,
-                history: [],
-                approvalChain: approvalChain,
-                perjalananDinasId: perjalananDinasId,
-            } as SuratKeluar;
-
+            newSurat = { ...surat, ...baseProps, status: 'Draf', version: 1, history: [], approvalChain, perjalananDinasId } as SuratKeluar;
         } else if (surat.tipe === TipeSurat.NOTA_DINAS) {
-            newSurat = {
-                ...surat,
-                ...baseProps,
-                status: 'Draf',
-                pembuat: currentUser!,
-            } as NotaDinas;
-        } else {
-            return;
-        }
-        
+            newSurat = { ...surat, ...baseProps, status: 'Draf', pembuat: currentUser! } as NotaDinas;
+        } else { return; }
         setAllSurat(prev => [newSurat, ...prev]);
         logActivity(`Membuat ${newSurat.tipe.toLowerCase()} baru: "${newSurat.perihal}"`);
     };
 
-    const handleSuratUpdate = (surat: AnySurat) => {
-        setAllSurat(prev => prev.map(s => s.id === surat.id ? surat : s));
-        logActivity(`Memperbarui surat "${surat.perihal}"`);
-    };
-    
-     const handleArchive = (suratId: string, folderId: string) => {
+    const handleArchive = (suratId: string, folderId: string) => {
         setAllSurat(prev => prev.map(s => s.id === suratId ? { ...s, isArchived: true, folderId } : s));
         logActivity(`Mengarsipkan surat dengan ID: ${suratId}`);
     };
@@ -231,8 +208,117 @@ const App: React.FC = () => {
         setAllSurat(prev => prev.map(s => suratIds.includes(s.id) ? { ...s, isArchived: true, folderId } : s));
         logActivity(`Mengarsipkan ${suratIds.length} surat.`);
     };
+
+    const handleAddDisposisi = (suratId: string, catatan: string, tujuanId: string, sifat: SifatDisposisi) => {
+        const surat = allSurat.find(s => s.id === suratId) as SuratMasuk;
+        if (!surat) return;
+        const tujuanUser = allUsers.find(u => u.id === tujuanId);
+        if (!tujuanUser) return;
+
+        const newDisposisi: Disposisi = {
+            id: `disp-${Date.now()}`,
+            pembuat: currentUser!,
+            tujuan: tujuanUser,
+            tanggal: new Date().toISOString(),
+            catatan,
+            sifat,
+            status: StatusDisposisi.DIPROSES,
+            riwayatStatus: [{ status: StatusDisposisi.DIPROSES, tanggal: new Date().toISOString(), oleh: currentUser! }],
+        };
+        const updatedSurat = { ...surat, disposisi: [...surat.disposisi, newDisposisi] };
+        handleSuratUpdate(updatedSurat);
+        createNotification(tujuanId, suratId, `Disposisi baru dari ${currentUser!.nama} perihal "${surat.perihal}"`);
+        logActivity(`Membuat disposisi untuk surat "${surat.perihal}"`);
+    };
+
+    const handleUpdateDisposisiStatus = (suratId: string, disposisiId: string, status: StatusDisposisi) => {
+        const surat = allSurat.find(s => s.id === suratId) as SuratMasuk;
+        if (!surat) return;
+        const updatedDisposisi = surat.disposisi.map(d => {
+            if (d.id === disposisiId) {
+                return { ...d, status, riwayatStatus: [...d.riwayatStatus, { status, tanggal: new Date().toISOString(), oleh: currentUser! }] };
+            }
+            return d;
+        });
+        const updatedSurat = { ...surat, disposisi: updatedDisposisi };
+        handleSuratUpdate(updatedSurat);
+        const disposisi = surat.disposisi.find(d => d.id === disposisiId);
+        if (disposisi) createNotification(disposisi.pembuat.id, suratId, `Status disposisi Anda untuk surat "${surat.perihal}" diubah menjadi ${status} oleh ${currentUser!.nama}`);
+        logActivity(`Mengubah status disposisi untuk surat "${surat.perihal}" menjadi ${status}`);
+    };
+
+    const handleAddKomentar = (suratId: string, teks: string) => {
+        const surat = allSurat.find(s => s.id === suratId);
+        if (!surat) return;
+        const newKomentar: Komentar = {
+            id: `komentar-${Date.now()}`,
+            user: currentUser!,
+            teks,
+            timestamp: new Date().toISOString(),
+        };
+        const updatedSurat = { ...surat, komentar: [...surat.komentar, newKomentar] };
+        handleSuratUpdate(updatedSurat);
+        logActivity(`Menambah komentar pada surat "${surat.perihal}"`);
+    };
+
+    const handleAddTask = (tugas: Omit<Tugas, 'id'>) => {
+        const newTugas: Tugas = {
+            ...tugas,
+            id: `tugas-${Date.now()}`,
+        };
+        setAllTugas(prev => [newTugas, ...prev]);
+        createNotification(tugas.ditugaskanKepada.id, tugas.suratId, `Tugas baru dari ${currentUser!.nama}: "${tugas.deskripsi}"`);
+        logActivity(`Membuat tugas baru: "${tugas.deskripsi}"`);
+    };
     
-    // ... other handlers would go here ...
+    const handleTambahTandaTangan = (suratId: string, signatureDataUrl?: string) => {
+        const surat = allSurat.find(s => s.id === suratId) as SuratKeluar;
+        if (!surat || surat.status !== 'Disetujui') return;
+        const updatedSurat = { ...surat, tandaTangan: signatureDataUrl || 'SIGNED_WITH_QR' }; // Use placeholder for QR
+        handleSuratUpdate(updatedSurat);
+        logActivity(`Menambahkan tanda tangan pada surat "${surat.perihal}"`);
+    };
+
+    const handleKirimUntukPersetujuan = (suratId: string) => {
+        const surat = allSurat.find(s => s.id === suratId) as SuratKeluar;
+        if (!surat) return;
+        const updatedSurat = { ...surat, status: 'Menunggu Persetujuan' as const };
+        handleSuratUpdate(updatedSurat);
+        const firstApprover = surat.approvalChain.find(step => step.order === 1);
+        if (firstApprover) createNotification(firstApprover.approver.id, suratId, `Permintaan persetujuan untuk surat "${surat.perihal}"`);
+        logActivity(`Mengirim surat "${surat.perihal}" untuk persetujuan.`);
+    };
+    
+    const handlePersetujuan = (suratId: string, stepId: string, decision: 'Disetujui' | 'Ditolak', notes: string) => {
+        const surat = allSurat.find(s => s.id === suratId) as SuratKeluar;
+        if (!surat) return;
+        let nextStatus = surat.status;
+        const updatedChain = surat.approvalChain.map(step => {
+            if (step.id === stepId) {
+                return { ...step, status: decision, notes, timestamp: new Date().toISOString() };
+            }
+            return step;
+        });
+
+        if (decision === 'Ditolak') {
+            nextStatus = 'Revisi';
+            createNotification(surat.pembuat.id, suratId, `Surat "${surat.perihal}" ditolak dan membutuhkan revisi.`);
+        } else {
+            const currentStepOrder = surat.approvalChain.find(s => s.id === stepId)?.order || 0;
+            const nextStep = surat.approvalChain.find(s => s.order === currentStepOrder + 1);
+            if (nextStep) {
+                createNotification(nextStep.approver.id, suratId, `Permintaan persetujuan untuk surat "${surat.perihal}"`);
+            } else {
+                nextStatus = 'Disetujui';
+                createNotification(surat.pembuat.id, suratId, `Surat "${surat.perihal}" telah disetujui sepenuhnya.`);
+            }
+        }
+        
+        const updatedSurat = { ...surat, status: nextStatus, approvalChain: updatedChain };
+        handleSuratUpdate(updatedSurat);
+        logActivity(`Memberikan persetujuan (${decision}) pada surat "${surat.perihal}"`);
+    };
+
     const handleReplyWithAI = (surat: SuratMasuk) => {
         setReplyingSurat({
             perihal: `Balasan: ${surat.perihal}`,
@@ -243,6 +329,7 @@ const App: React.FC = () => {
         setCurrentPage('surat_keluar');
     };
 
+    // --- OTHER HANDLERS ---
     const handleCreatePermintaan = (permintaan: Omit<PermintaanLaporan, 'id'|'dibuatOleh'|'timestamp'>) => {
         const newPermintaan: PermintaanLaporan = {
             ...permintaan,
@@ -299,6 +386,26 @@ const App: React.FC = () => {
         setChatRooms(prev => prev.map(room => room.id === roomId ? { ...room, lastMessage: newMessage } : room));
     };
 
+    const handleNotificationClick = (suratId: string, notifId: string) => {
+        setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, isRead: true } : n));
+        const surat = allSurat.find(s => s.id === suratId);
+        if (!surat) return;
+
+        if (surat.tipe === TipeSurat.MASUK) setCurrentPage('surat_masuk');
+        else if (surat.tipe === TipeSurat.KELUAR) setCurrentPage('surat_keluar');
+        else if (surat.tipe === TipeSurat.NOTA_DINAS) setCurrentPage('nota_dinas');
+        // Future: could also open the detail modal directly
+    };
+    
+    const activePengumuman = useMemo(() => pengumumanList.filter(p => {
+        const now = new Date();
+        const startDate = new Date(p.tanggalMulai);
+        const endDate = new Date(p.tanggalSelesai);
+        startDate.setHours(0,0,0,0);
+        endDate.setHours(23,59,59,999);
+        return p.isActive && now >= startDate && now <= endDate;
+    }), [pengumumanList]);
+
 
     const clearInitialData = () => {
         setReplyingSurat(null);
@@ -344,11 +451,11 @@ const App: React.FC = () => {
                     onUpdate={handleSuratUpdate}
                     onArchive={handleArchive}
                     onBulkArchive={handleBulkArchive}
-                    onAddDisposisi={()=>{}}
-                    onUpdateDisposisiStatus={()=>{}}
+                    onAddDisposisi={handleAddDisposisi}
+                    onUpdateDisposisiStatus={handleUpdateDisposisiStatus}
                     onReplyWithAI={handleReplyWithAI}
-                    onAddKomentar={()=>{}}
-                    onAddTask={()=>{}}
+                    onAddKomentar={handleAddKomentar}
+                    onAddTask={handleAddTask}
                 />;
             case 'surat_keluar':
                 return <SuratKeluarComponent
@@ -369,11 +476,11 @@ const App: React.FC = () => {
                     onUpdate={handleSuratUpdate}
                     onArchive={handleArchive}
                     onBulkArchive={handleBulkArchive}
-                    onTambahTandaTangan={()=>{}}
-                    onKirimUntukPersetujuan={()=>{}}
-                    onPersetujuan={()=>{}}
-                    onAddKomentar={()=>{}}
-                    onAddTask={()=>{}}
+                    onTambahTandaTangan={handleTambahTandaTangan}
+                    onKirimUntukPersetujuan={handleKirimUntukPersetujuan}
+                    onPersetujuan={handlePersetujuan}
+                    onAddKomentar={handleAddKomentar}
+                    onAddTask={handleAddTask}
                     initialData={replyingSurat}
                     clearInitialData={clearInitialData}
                 />;
@@ -390,8 +497,8 @@ const App: React.FC = () => {
                     onSubmit={handleSuratSubmit}
                     onUpdate={handleSuratUpdate}
                     onArchive={handleArchive}
-                    onAddKomentar={() => {}}
-                    onAddTask={() => {}}
+                    onAddKomentar={handleAddKomentar}
+                    onAddTask={handleAddTask}
                 />;
             case 'obrolan':
                 return <Chat
@@ -419,7 +526,7 @@ const App: React.FC = () => {
                     currentUser={currentUser}
                 />;
             case 'arsip':
-                return <Arsip suratList={archivedSurat} folders={folders} kategoriList={kategoriList} currentUser={currentUser} onCreateFolder={()=>{}} />;
+                return <Arsip suratList={archivedSurat} folders={folders} kategoriList={kategoriList} currentUser={currentUser} onCreateFolder={(nama) => setFolders(prev => [...prev, {id: `folder-${Date.now()}`, nama}])} />;
             case 'pencarian':
                 return <PencarianCerdas allSurat={allSurat} kategoriList={kategoriList} />;
             case 'laporan':
@@ -455,11 +562,10 @@ const App: React.FC = () => {
                     klasifikasiList={klasifikasiList}
                     kebijakanRetensiList={kebijakanRetensi}
                     templateList={templates}
-                    pengumumanList={mockPengumuman} // Show all for management
+                    pengumumanList={pengumumanList}
                     activityLogs={activityLogs}
                     allSurat={allSurat}
                     currentUser={currentUser}
-                    // Pass handlers
                     handlers={{
                         setUsers: setAllUsers,
                         setUnitKerjaList: setUnitKerjaList,
@@ -479,7 +585,7 @@ const App: React.FC = () => {
                     onSettingsChange={setAppSettings}
                     currentUser={currentUser}
                     allUsers={allUsers}
-                    onSetDelegasi={()=>{}}
+                    onSetDelegasi={()=>{}} // Placeholder for delegation logic
                     kopSuratSettings={kopSuratSettings}
                     onUpdateKopSurat={setKopSuratSettings}
                     penomoranSettings={penomoranSettings}
@@ -496,8 +602,12 @@ const App: React.FC = () => {
     return (
         <div className="flex h-screen bg-slate-100 font-sans">
             <aside className="w-64 bg-slate-800 text-white flex flex-col flex-shrink-0">
-                <div className="h-16 flex items-center justify-center text-xl font-bold border-b border-slate-700">
-                    STAR E-ARSIM
+                <div className="h-16 flex items-center justify-center px-4 border-b border-slate-700">
+                    {brandingSettings.appLogoUrl ? (
+                         <img src={brandingSettings.appLogoUrl} alt="App Logo" className="h-10 object-contain" />
+                    ) : (
+                        <span className="text-xl font-bold">STAR E-ARSIM</span>
+                    )}
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
                     <AppNav currentPage={currentPage} onNavigate={setCurrentPage} currentUser={currentUser} />
@@ -506,9 +616,9 @@ const App: React.FC = () => {
 
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
-                    <h1 className="text-xl font-semibold text-slate-800 capitalize">{currentPage.replace('_', ' ')}</h1>
+                    <h1 className="text-xl font-semibold text-slate-800 capitalize">{currentPage.replace(/_/g, ' ')}</h1>
                     <div className="flex items-center space-x-4">
-                        <NotificationBell notifications={notifications} onNotificationClick={() => {}} />
+                        <NotificationBell notifications={notifications} onNotificationClick={handleNotificationClick} />
                         <div>
                             <p className="font-semibold text-sm text-slate-700">{currentUser.nama}</p>
                             <p className="text-xs text-slate-500">{currentUser.jabatan}</p>
@@ -516,7 +626,7 @@ const App: React.FC = () => {
                          <button onClick={() => setCurrentUser(null)} className="text-sm text-slate-600 hover:text-red-600">Logout</button>
                     </div>
                 </header>
-                <AnnouncementBanner pengumumanList={pengumumanList} />
+                <AnnouncementBanner pengumumanList={activePengumuman} />
                 <main className="flex-1 overflow-y-auto p-6">
                     {renderPage()}
                 </main>
