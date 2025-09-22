@@ -1,13 +1,16 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { ChatMessage } from '../types';
+// FIX: Changed to import AIChatMessage to resolve type conflict.
+import { AIChatMessage } from '../types';
 import Modal from './Modal';
 import { SparklesIcon, PaperAirplaneIcon } from './icons';
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 
 const BantuanAI: React.FC = () => {
     const [isModalOpen, setModalOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    // FIX: Updated state to use the correct AIChatMessage type.
+    const [messages, setMessages] = useState<AIChatMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -49,7 +52,8 @@ const BantuanAI: React.FC = () => {
         const messageText = query || userInput;
         if (!messageText.trim() || isLoading) return;
 
-        const newMessages: ChatMessage[] = [...messages, { role: 'user', text: messageText }];
+        // FIX: Ensured newMessages array is typed correctly with AIChatMessage.
+        const newMessages: AIChatMessage[] = [...messages, { role: 'user', text: messageText }];
         setMessages(newMessages);
         setUserInput('');
         setIsLoading(true);

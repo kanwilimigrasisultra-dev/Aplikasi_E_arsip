@@ -2,13 +2,13 @@ import React, { useState, useCallback } from 'react';
 import {
     mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockFolders, mockNotifikasi, mockActivityLogs, mockKopSuratSettings, mockAppSettings,
-    mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman, mockAllSurat as initialAllSurat, mockTugas, mockPermintaanLaporan, mockPengirimanLaporan, mockTiket, mockPerjalananDinas
+    mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman, mockAllSurat as initialAllSurat, mockTugas, mockPermintaanLaporan, mockPengirimanLaporan, mockTiket, mockPerjalananDinas, mockChatRooms, mockChatMessages
 } from './mock-data';
 import {
     User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat, SuratMasuk, SuratKeluar,
     FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings,
     PenomoranSettings, BrandingSettings, KebijakanRetensi, TipeSurat, SifatDisposisi,
-    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardLayoutSettings, PermintaanLaporan, PengirimanLaporan, Tiket, PerjalananDinas
+    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardLayoutSettings, PermintaanLaporan, PengirimanLaporan, Tiket, PerjalananDinas, ChatRoom, ChatMessage
 } from './types';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
@@ -18,7 +18,7 @@ import Arsip from './components/Arsip';
 import Pengaturan from './components/Pengaturan';
 import Administrasi from './components/Administrasi';
 import NotificationBell from './components/NotificationBell';
-import { ArchiveIcon, InboxIcon, OutboxIcon, SearchIcon, ClipboardListIcon, ShieldCheckIcon, CogIcon, UsersIcon, ArchiveBoxArrowDownIcon, PaperAirplaneIcon, DocumentChartBarIcon, BookOpenIcon, GlobeAltIcon, CalendarIcon } from './components/icons';
+import { ArchiveIcon, InboxIcon, OutboxIcon, SearchIcon, ClipboardListIcon, ShieldCheckIcon, CogIcon, UsersIcon, ArchiveBoxArrowDownIcon, PaperAirplaneIcon, DocumentChartBarIcon, BookOpenIcon, GlobeAltIcon, CalendarIcon, ChatBubbleLeftRightIcon } from './components/icons';
 import PencarianCerdas from './components/PencarianCerdas';
 import Laporan from './components/Laporan';
 import VerifikasiDokumen from './components/VerifikasiDokumen';
@@ -31,8 +31,9 @@ import Helpdesk from './components/Helpdesk';
 import BukuAgenda from './components/BukuAgenda';
 import PerjalananDinasComponent from './components/PerjalananDinas';
 import Kalender from './components/Kalender';
+import Chat from './components/Chat';
 
-type Page = 'dashboard' | 'surat_masuk' | 'surat_keluar' | 'nota_dinas' | 'buku_agenda' | 'perjalanan_dinas' | 'kalender' | 'arsip' | 'pencarian' | 'laporan' | 'pelaporan_periodik' | 'verifikasi' | 'helpdesk' | 'administrasi' | 'pengaturan';
+type Page = 'dashboard' | 'surat_masuk' | 'surat_keluar' | 'nota_dinas' | 'buku_agenda' | 'perjalanan_dinas' | 'kalender' | 'obrolan' | 'arsip' | 'pencarian' | 'laporan' | 'pelaporan_periodik' | 'verifikasi' | 'helpdesk' | 'administrasi' | 'pengaturan';
 
 const AppNav: React.FC<{ currentPage: Page; onNavigate: (page: Page) => void, currentUser: User }> = ({ currentPage, onNavigate, currentUser }) => {
     const navItems = [
@@ -49,13 +50,13 @@ const AppNav: React.FC<{ currentPage: Page; onNavigate: (page: Page) => void, cu
         { id: 'pelaporan_periodik', label: 'Pelaporan Periodik', icon: <DocumentChartBarIcon className="w-5 h-5" /> },
         { id: 'verifikasi', label: 'Verifikasi Dokumen', icon: <ShieldCheckIcon className="w-5 h-5" /> },
         { id: 'helpdesk', label: 'Pusat Bantuan', icon: <QuestionMarkCircleIcon className="w-5 h-5" /> },
+        { id: 'obrolan', label: 'Obrolan', icon: <ChatBubbleLeftRightIcon className="w-5 h-5" /> },
     ];
     
     if (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN) {
         navItems.push({ id: 'administrasi', label: 'Administrasi', icon: <UsersIcon className="w-5 h-5" /> });
+        navItems.push({ id: 'pengaturan', label: 'Pengaturan', icon: <CogIcon className="w-5 h-5" /> });
     }
-
-    navItems.push({ id: 'pengaturan', label: 'Pengaturan', icon: <CogIcon className="w-5 h-5" /> });
 
     return (
         <nav className="space-y-1">
@@ -98,6 +99,8 @@ const App: React.FC = () => {
     const [pengirimanLaporanList, setPengirimanLaporanList] = useState<PengirimanLaporan[]>(mockPengirimanLaporan);
     const [tiketList, setTiketList] = useState<Tiket[]>(mockTiket);
     const [perjalananDinasList, setPerjalananDinasList] = useState<PerjalananDinas[]>(mockPerjalananDinas);
+    const [chatRooms, setChatRooms] = useState<ChatRoom[]>(mockChatRooms);
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>(mockChatMessages);
 
     // Settings state
     const [appSettings, setAppSettings] = useState<AppSettings>(mockAppSettings);
@@ -283,6 +286,19 @@ const App: React.FC = () => {
         logActivity(`Memperbarui tiket bantuan: "${updatedTiket.judul}"`);
     };
 
+    const handleSendMessage = (roomId: string, text: string) => {
+        const newMessage: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            roomId,
+            senderId: currentUser!.id,
+            text,
+            timestamp: new Date().toISOString(),
+        };
+        setChatMessages(prev => [...prev, newMessage]);
+        // Update last message in room
+        setChatRooms(prev => prev.map(room => room.id === roomId ? { ...room, lastMessage: newMessage } : room));
+    };
+
 
     const clearInitialData = () => {
         setReplyingSurat(null);
@@ -376,6 +392,14 @@ const App: React.FC = () => {
                     onArchive={handleArchive}
                     onAddKomentar={() => {}}
                     onAddTask={() => {}}
+                />;
+            case 'obrolan':
+                return <Chat
+                    chatRooms={chatRooms}
+                    chatMessages={chatMessages}
+                    currentUser={currentUser}
+                    allUsers={allUsers}
+                    onSendMessage={handleSendMessage}
                 />;
             case 'buku_agenda':
                 return <BukuAgenda allSurat={allSurat} allUsers={allUsers} />;

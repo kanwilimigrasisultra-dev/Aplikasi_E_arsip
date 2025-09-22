@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-// FIX: Removed non-existent AllUsers type and added LaporanPerjalananDinas type.
-import { PerjalananDinas, SuratKeluar, User, LaporanPerjalananDinas } from '../types';
+import React, { useState, useMemo } from 'react';
+import { PerjalananDinas, SuratKeluar, User, LaporanPerjalananDinas, UserRole } from '../types';
 import { GlobeAltIcon } from './icons';
 
 interface PerjalananDinasProps {
@@ -22,8 +21,20 @@ const getStatusBadge = (status: PerjalananDinas['status']) => {
 
 const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = ({ perjalananDinasList, suratKeluarList, currentUser, allUsers, onAddLaporan }) => {
     
-    // For simplicity, we show all trips to all users. A real app would filter by participant or unit.
-    const combinedData = perjalananDinasList.map(pd => {
+    const myPerjalananDinas = useMemo(() => {
+        const isAdminOrPimpinan = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PIMPINAN, UserRole.MANAJERIAL].includes(currentUser.role);
+        
+        if (isAdminOrPimpinan) {
+            return perjalananDinasList;
+        }
+        
+        // Staf view: only see trips they are a participant in.
+        return perjalananDinasList.filter(pd => pd.pesertaIds.includes(currentUser.id));
+
+    }, [perjalananDinasList, currentUser]);
+
+
+    const combinedData = myPerjalananDinas.map(pd => {
         const suratTugas = suratKeluarList.find(s => s.id === pd.suratTugasId);
         return { ...pd, suratTugas };
     });
@@ -86,7 +97,7 @@ const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = ({ perjalananDi
                     </table>
                      {combinedData.length === 0 && (
                         <div className="text-center py-10 text-slate-500">
-                            <p>Belum ada data perjalanan dinas yang tercatat.</p>
+                            <p>Belum ada data perjalanan dinas yang tercatat untuk Anda.</p>
                         </div>
                     )}
                 </div>

@@ -1,5 +1,7 @@
 {
   "name": "E-Arsip Surat Digital",
   "description": "A comprehensive digital mail archiving application to manage incoming and outgoing letters, including features for disposition, notifications, and organized folder-based archiving.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

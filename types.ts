@@ -1,3 +1,4 @@
+
 export enum TipeSurat {
   MASUK = 'MASUK',
   KELUAR = 'KELUAR',
@@ -283,7 +284,8 @@ export interface DashboardWidget {
 export type DashboardLayoutSettings = DashboardWidget[];
 
 
-export interface ChatMessage {
+// FIX: Renamed interface to avoid name collision with the main ChatMessage interface.
+export interface AIChatMessage {
   role: 'user' | 'model';
   text: string;
 }
@@ -372,4 +374,21 @@ export interface CalendarEvent {
   type: 'Tugas' | 'Disposisi' | 'Perjalanan Dinas';
   linkId: string; // ID of the surat, tugas, or perjalananDinas
   description?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  senderId: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface ChatRoom {
+  id: string;
+  name: string;
+  type: 'direct' | 'group' | 'document';
+  memberIds: string[];
+  suratId?: string; // Link to surat if it's a document-specific chat
+  lastMessage?: ChatMessage;
 }

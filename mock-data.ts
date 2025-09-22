@@ -1,7 +1,7 @@
 import {
   User, UserRole, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
   SuratMasuk, SuratKeluar, TipeSurat, SifatSurat, Disposisi, SifatDisposisi, StatusDisposisi,
-  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, KebijakanRetensi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, Tugas, PermintaanLaporan, PengirimanLaporan, Tiket, BalasanTiket, PerjalananDinas, RincianBiaya
+  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, KebijakanRetensi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, Tugas, PermintaanLaporan, PengirimanLaporan, Tiket, BalasanTiket, PerjalananDinas, RincianBiaya, ChatRoom, ChatMessage
 } from './types';
 
 // IDs for consistency
@@ -302,5 +302,35 @@ export const mockTiket: Tiket[] = [
         tanggalDibuat: new Date(Date.now() - 86400000).toISOString(),
         tanggalUpdate: new Date(Date.now() - 86400000).toISOString(),
         balasan: [],
+    }
+];
+
+export const mockChatMessages: ChatMessage[] = [
+    { id: 'msg-1', roomId: 'chat-room-1', senderId: userPimpinanId, text: 'Tolong segera siapkan materi untuk Rakornas ya.', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString() },
+    { id: 'msg-2', roomId: 'chat-room-1', senderId: userStaf1Id, text: 'Siap, Pak. Drafnya akan saya kirimkan sore ini.', timestamp: new Date(Date.now() - 1000 * 60 * 4).toISOString() },
+    { id: 'msg-3', roomId: 'chat-room-2', senderId: userManajerialId, text: 'Tim Keuangan, mohon update progress audit internal.', timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString() },
+];
+
+export const mockChatRooms: ChatRoom[] = [
+    {
+        id: 'chat-room-1',
+        name: 'Diskusi: Undangan Rapat Koordinasi Nasional',
+        type: 'document',
+        memberIds: [userPimpinanId, userStaf1Id, userSuperAdminId],
+        suratId: 'sm-1',
+        lastMessage: mockChatMessages[1],
+    },
+    {
+        id: 'chat-room-2',
+        name: 'Grup Tim Keuangan',
+        type: 'group',
+        memberIds: [userManajerialId, userStaf2Id, userSuperAdminId],
+        lastMessage: mockChatMessages[2],
+    },
+    {
+        id: 'chat-room-3',
+        name: 'Citra Lestari',
+        type: 'direct',
+        memberIds: [userSuperAdminId, userAdminId],
     }
 ];
