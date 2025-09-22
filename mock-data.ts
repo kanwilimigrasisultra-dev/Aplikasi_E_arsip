@@ -166,7 +166,6 @@ export const mockBrandingSettings: BrandingSettings = {
     appLogoUrl: '',
     loginLogo1Url: '',
     loginLogo2Url: '',
-    loginLogo3Url: '',
 };
 
 export const mockKebijakanRetensi: KebijakanRetensi[] = [

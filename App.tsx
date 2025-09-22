@@ -378,6 +378,10 @@ const App: React.FC = () => {
                 <main className="flex-1 overflow-y-auto p-6">
                     {renderPage()}
                 </main>
+                <footer className="text-center py-4 text-xs text-slate-500 bg-slate-100 flex-shrink-0">
+                    <p>© 2025 STAR E-ARSIM SULTRA by Acn. All rights reserved.</p>
+                    <p>KANWIL DITJEN IMIGRASI SULAWESI TENGGARA</p>
+                </footer>
             </div>
             <BantuanAI />
         </div>

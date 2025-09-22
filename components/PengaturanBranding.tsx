@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { BrandingSettings } from '../types';
 import { CheckCircleIcon, OfficeBuildingIcon, PaperClipIcon } from './icons';
@@ -82,11 +83,6 @@ const PengaturanBranding: React.FC<PengaturanBrandingProps> = ({ settings, onSav
                     logoKey="loginLogo2Url" 
                     label="Logo Halaman Login 2" 
                     description="Logo kedua yang tampil di halaman login." 
-                />
-                 <LogoInput 
-                    logoKey="loginLogo3Url" 
-                    label="Logo Halaman Login 3" 
-                    description="Logo ketiga yang tampil di halaman login." 
                 />
 
                 <div className="flex justify-end pt-4">

@@ -99,7 +99,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, brandingSettings }) => {
     };
 
 
-    const loginLogos = [brandingSettings.loginLogo1Url, brandingSettings.loginLogo2Url, brandingSettings.loginLogo3Url];
+    const loginLogos = [brandingSettings.loginLogo1Url, brandingSettings.loginLogo2Url];
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-slate-100 p-4">

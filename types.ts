@@ -242,7 +242,6 @@ export interface BrandingSettings {
   appLogoUrl: string;
   loginLogo1Url: string;
   loginLogo2Url: string;
-  loginLogo3Url: string;
 }
 
 export interface AppSettings {
