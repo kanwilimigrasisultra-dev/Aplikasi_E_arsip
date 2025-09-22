@@ -101,7 +101,7 @@ export interface TemplateSurat {
     perihal: string;
     kategoriId: string;
     sifat: SifatSurat;
-    jenisSuratKeluar: 'Biasa' | 'SK';
+    jenisSuratKeluar: 'Biasa' | 'SK' | 'SPPD';
     masalahUtamaId: string;
     ringkasan: string; // Can contain basic HTML
 }
@@ -159,6 +159,7 @@ interface SuratBase {
   folderId?: string;
   tipe: TipeSurat;
   unitKerjaId: string; // Unit kerja yang membuat/menerima surat ini
+  nomorAgenda?: number;
   attachments?: Attachment[];
   komentar: Komentar[];
   tugasTerkait: Tugas[];
@@ -178,7 +179,7 @@ export interface SuratKeluar extends SuratBase {
   tujuan: string; // Nama tujuan eksternal
   tujuanUnitKerjaId?: string; // ID tujuan internal jika ada
   pembuat: User;
-  jenisSuratKeluar: 'Biasa' | 'SK';
+  jenisSuratKeluar: 'Biasa' | 'SK' | 'SPPD';
   masalahUtamaId: string;
   klasifikasiId: string;
   ringkasan: string; // Can contain basic HTML for rich text editor
@@ -189,6 +190,7 @@ export interface SuratKeluar extends SuratBase {
   history: Partial<SuratKeluar>[];
   approvalChain: ApprovalStep[];
   tembusan?: string[];
+  perjalananDinasId?: string;
 }
 
 export interface NotaDinas extends SuratBase {
@@ -270,14 +272,104 @@ export interface KebijakanRetensi {
     tindakanFinal: 'Musnahkan' | 'Permanen';
 }
 
-export type DashboardWidgetSettings = {
-    stats: boolean;
-    chart: boolean;
-    recent: boolean;
-    tasks: boolean;
-};
+export type DashboardWidgetId = 'stats' | 'chart' | 'recent' | 'tasks' | 'pelaporan';
+
+export interface DashboardWidget {
+    id: DashboardWidgetId;
+    visible: boolean;
+    name: string;
+}
+
+export type DashboardLayoutSettings = DashboardWidget[];
+
 
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
+}
+
+export interface PermintaanLaporan {
+  id: string;
+  nama: string;
+  deskripsi: string;
+  periode: 'Bulanan' | 'Triwulan' | 'Tahunan';
+  aturanJatuhTempo: string; // e.g., "Setiap tanggal 5 bulan berikutnya"
+  unitTujuanIds: string[]; // Array of UnitKerja IDs
+  templateUrl?: string;
+  dibuatOleh: User;
+  timestamp: string;
+}
+
+export interface PengirimanLaporan {
+  id: string;
+  permintaanId: string; // Link to PermintaanLaporan
+  unitKerjaId: string; // Unit Kerja that submitted
+  periodeLaporan: string; // e.g., "Oktober 2024" or "Triwulan 4 2024"
+  tanggalPengiriman: string;
+  attachment: Attachment;
+  status: 'Tepat Waktu' | 'Terlambat';
+  catatan?: string;
+  dikirimOleh: User;
+}
+
+export interface BalasanTiket {
+  id: string;
+  user: User;
+  teks: string;
+  timestamp: string;
+  isInternalNote: boolean; // For admin-to-admin comments
+}
+
+export interface Tiket {
+  id: string;
+  judul: string;
+  deskripsi: string;
+  kategori: 'Masalah Teknis' | 'Permintaan Data' | 'Saran Fitur' | 'Lainnya';
+  prioritas: 'Rendah' | 'Sedang' | 'Tinggi';
+  status: 'Baru' | 'Sedang Diproses' | 'Menunggu Respon' | 'Selesai';
+  pembuat: User;
+  ditugaskanKepada?: User;
+  tanggalDibuat: string;
+  tanggalUpdate: string;
+  attachments?: Attachment[];
+  balasan: BalasanTiket[];
+}
+
+export interface RincianBiaya {
+  id: string;
+  deskripsi: string;
+  jumlah: number;
+  satuan: string;
+  hargaSatuan: number;
+}
+
+export interface LaporanPerjalananDinas {
+  id: string;
+  ringkasanHasil: string;
+  attachments: Attachment[]; // For receipts, etc.
+  tanggalPengiriman: string;
+  dikirimOleh: User;
+}
+
+export interface PerjalananDinas {
+  id: string;
+  suratTugasId: string; // Links to a SuratKeluar of type SPPD
+  tujuanPerjalanan: string;
+  kotaTujuan: string;
+  tanggalBerangkat: string;
+  tanggalKembali: string;
+  pesertaIds: string[];
+  rincianBiaya: RincianBiaya[];
+  status: 'Direncanakan' | 'Selesai' | 'Laporan Dikirim';
+  laporan?: LaporanPerjalananDinas;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  type: 'Tugas' | 'Disposisi' | 'Perjalanan Dinas';
+  linkId: string; // ID of the surat, tugas, or perjalananDinas
+  description?: string;
 }

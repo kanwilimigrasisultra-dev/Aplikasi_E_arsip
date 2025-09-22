@@ -26,7 +26,8 @@ const TemplateFormModal: React.FC<{
         perihal: '',
         kategoriId: kategoriList[0]?.id || '',
         sifat: SifatSurat.BIASA,
-        jenisSuratKeluar: 'Biasa' as 'Biasa' | 'SK',
+// FIX: Changed type to include 'SPPD' to match the TemplateSurat type definition.
+        jenisSuratKeluar: 'Biasa' as 'Biasa' | 'SK' | 'SPPD',
         masalahUtamaId: masalahUtamaList[0]?.id || '',
         ringkasan: '',
     });

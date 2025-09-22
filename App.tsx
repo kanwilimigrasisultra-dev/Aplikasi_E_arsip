@@ -1,16 +1,14 @@
-
-
 import React, { useState, useCallback } from 'react';
 import {
     mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockFolders, mockNotifikasi, mockActivityLogs, mockKopSuratSettings, mockAppSettings,
-    mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman, mockAllSurat as initialAllSurat, mockTugas
+    mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman, mockAllSurat as initialAllSurat, mockTugas, mockPermintaanLaporan, mockPengirimanLaporan, mockTiket, mockPerjalananDinas
 } from './mock-data';
 import {
     User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat, SuratMasuk, SuratKeluar,
     FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings,
     PenomoranSettings, BrandingSettings, KebijakanRetensi, TipeSurat, SifatDisposisi,
-    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardWidgetSettings
+    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardLayoutSettings, PermintaanLaporan, PengirimanLaporan, Tiket, PerjalananDinas
 } from './types';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
@@ -20,15 +18,21 @@ import Arsip from './components/Arsip';
 import Pengaturan from './components/Pengaturan';
 import Administrasi from './components/Administrasi';
 import NotificationBell from './components/NotificationBell';
-import { ArchiveIcon, InboxIcon, OutboxIcon, SearchIcon, ClipboardListIcon, ShieldCheckIcon, CogIcon, UsersIcon, ArchiveBoxArrowDownIcon, PaperAirplaneIcon } from './components/icons';
+import { ArchiveIcon, InboxIcon, OutboxIcon, SearchIcon, ClipboardListIcon, ShieldCheckIcon, CogIcon, UsersIcon, ArchiveBoxArrowDownIcon, PaperAirplaneIcon, DocumentChartBarIcon, BookOpenIcon, GlobeAltIcon, CalendarIcon } from './components/icons';
 import PencarianCerdas from './components/PencarianCerdas';
 import Laporan from './components/Laporan';
 import VerifikasiDokumen from './components/VerifikasiDokumen';
 import NotaDinasComponent from './components/NotaDinas';
 import BantuanAI from './components/BantuanAI';
 import AnnouncementBanner from './components/AnnouncementBanner';
+import PelaporanPeriodik from './components/PelaporanPeriodik';
+import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
+import Helpdesk from './components/Helpdesk';
+import BukuAgenda from './components/BukuAgenda';
+import PerjalananDinasComponent from './components/PerjalananDinas';
+import Kalender from './components/Kalender';
 
-type Page = 'dashboard' | 'surat_masuk' | 'surat_keluar' | 'nota_dinas' | 'arsip' | 'pencarian' | 'laporan' | 'verifikasi' | 'administrasi' | 'pengaturan';
+type Page = 'dashboard' | 'surat_masuk' | 'surat_keluar' | 'nota_dinas' | 'buku_agenda' | 'perjalanan_dinas' | 'kalender' | 'arsip' | 'pencarian' | 'laporan' | 'pelaporan_periodik' | 'verifikasi' | 'helpdesk' | 'administrasi' | 'pengaturan';
 
 const AppNav: React.FC<{ currentPage: Page; onNavigate: (page: Page) => void, currentUser: User }> = ({ currentPage, onNavigate, currentUser }) => {
     const navItems = [
@@ -36,10 +40,15 @@ const AppNav: React.FC<{ currentPage: Page; onNavigate: (page: Page) => void, cu
         { id: 'surat_masuk', label: 'Surat Masuk', icon: <InboxIcon className="w-5 h-5" /> },
         { id: 'surat_keluar', label: 'Surat Keluar', icon: <OutboxIcon className="w-5 h-5" /> },
         { id: 'nota_dinas', label: 'Nota Dinas', icon: <PaperAirplaneIcon className="w-5 h-5" /> },
+        { id: 'buku_agenda', label: 'Buku Agenda', icon: <BookOpenIcon className="w-5 h-5" /> },
+        { id: 'perjalanan_dinas', label: 'Perjalanan Dinas', icon: <GlobeAltIcon className="w-5 h-5" /> },
+        { id: 'kalender', label: 'Kalender Agenda', icon: <CalendarIcon className="w-5 h-5" /> },
         { id: 'arsip', label: 'Arsip', icon: <ArchiveBoxArrowDownIcon className="w-5 h-5" /> },
         { id: 'pencarian', label: 'Pencarian Cerdas', icon: <SearchIcon className="w-5 h-5" /> },
         { id: 'laporan', label: 'Laporan', icon: <ClipboardListIcon className="w-5 h-5" /> },
+        { id: 'pelaporan_periodik', label: 'Pelaporan Periodik', icon: <DocumentChartBarIcon className="w-5 h-5" /> },
         { id: 'verifikasi', label: 'Verifikasi Dokumen', icon: <ShieldCheckIcon className="w-5 h-5" /> },
+        { id: 'helpdesk', label: 'Pusat Bantuan', icon: <QuestionMarkCircleIcon className="w-5 h-5" /> },
     ];
     
     if (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN) {
@@ -85,6 +94,10 @@ const App: React.FC = () => {
     }));
     const [allTugas, setAllTugas] = useState<Tugas[]>(mockTugas);
     const [templates, setTemplates] = useState<TemplateSurat[]>(mockTemplates);
+    const [permintaanLaporanList, setPermintaanLaporanList] = useState<PermintaanLaporan[]>(mockPermintaanLaporan);
+    const [pengirimanLaporanList, setPengirimanLaporanList] = useState<PengirimanLaporan[]>(mockPengirimanLaporan);
+    const [tiketList, setTiketList] = useState<Tiket[]>(mockTiket);
+    const [perjalananDinasList, setPerjalananDinasList] = useState<PerjalananDinas[]>(mockPerjalananDinas);
 
     // Settings state
     const [appSettings, setAppSettings] = useState<AppSettings>(mockAppSettings);
@@ -92,7 +105,13 @@ const App: React.FC = () => {
     const [penomoranSettings, setPenomoranSettings] = useState<PenomoranSettings>(mockPenomoranSettings);
     const [brandingSettings, setBrandingSettings] = useState<BrandingSettings>(mockBrandingSettings);
     const [kebijakanRetensi, setKebijakanRetensi] = useState<KebijakanRetensi[]>(mockKebijakanRetensi);
-    const [widgetSettings, setWidgetSettings] = useState<DashboardWidgetSettings>({ stats: true, chart: true, recent: true, tasks: true });
+    const [widgetLayout, setWidgetLayout] = useState<DashboardLayoutSettings>([
+        { id: 'stats', visible: true, name: 'Kartu Statistik' },
+        { id: 'chart', visible: true, name: 'Grafik Tren Surat' },
+        { id: 'tasks', visible: true, name: 'Widget Tugas Saya' },
+        { id: 'pelaporan', visible: true, name: 'Widget Pelaporan Periodik' },
+        { id: 'recent', visible: true, name: 'Aktivitas Surat Terkini' },
+    ]);
 
     // Navigation state
     const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -125,11 +144,14 @@ const App: React.FC = () => {
 
     // FIX: Changed parameter type to `any` and added type assertions to fix complex type issues.
     const handleSuratSubmit = (surat: any) => {
+        const nextNomorAgenda = allSurat.length > 0 ? Math.max(...allSurat.map(s => s.nomorAgenda || 0)) + 1 : 1;
+
         const baseProps = {
             id: `${surat.tipe === TipeSurat.MASUK ? 'sm' : (surat.tipe === TipeSurat.KELUAR ? 'sk' : 'nd')}-${Date.now()}`,
             isArchived: false,
             fileUrl: '#',
             unitKerjaId: currentUser!.unitKerjaId,
+            nomorAgenda: nextNomorAgenda,
             komentar: [],
             tugasTerkait: [],
             dokumenTerkait: [],
@@ -144,7 +166,6 @@ const App: React.FC = () => {
                 disposisi: [],
             } as SuratMasuk;
         } else if (surat.tipe === TipeSurat.KELUAR) {
-            // Robustly create approval chain to prevent crashes if roles don't exist.
             const manajerialApprover = allUsers.find(u => u.role === UserRole.MANAJERIAL);
             const pimpinanApprover = allUsers.find(u => u.role === UserRole.PIMPINAN);
             const approvalChain: ApprovalStep[] = [];
@@ -156,6 +177,18 @@ const App: React.FC = () => {
                 approvalChain.push({ id: `app-${Date.now()}-2`, approver: pimpinanApprover, status: 'Menunggu', order: 2 });
             }
 
+            let perjalananDinasId: string | undefined = undefined;
+            if (surat.jenisSuratKeluar === 'SPPD' && surat.perjalananDinasData) {
+                const newPerjalananDinas: PerjalananDinas = {
+                    ...surat.perjalananDinasData,
+                    id: `pd-${Date.now()}`,
+                    suratTugasId: baseProps.id,
+                    status: 'Direncanakan',
+                };
+                perjalananDinasId = newPerjalananDinas.id;
+                setPerjalananDinasList(prev => [newPerjalananDinas, ...prev]);
+            }
+            
             newSurat = {
                 ...surat,
                 ...baseProps,
@@ -163,7 +196,9 @@ const App: React.FC = () => {
                 version: 1,
                 history: [],
                 approvalChain: approvalChain,
+                perjalananDinasId: perjalananDinasId,
             } as SuratKeluar;
+
         } else if (surat.tipe === TipeSurat.NOTA_DINAS) {
             newSurat = {
                 ...surat,
@@ -205,6 +240,50 @@ const App: React.FC = () => {
         setCurrentPage('surat_keluar');
     };
 
+    const handleCreatePermintaan = (permintaan: Omit<PermintaanLaporan, 'id'|'dibuatOleh'|'timestamp'>) => {
+        const newPermintaan: PermintaanLaporan = {
+            ...permintaan,
+            id: `req-${Date.now()}`,
+            dibuatOleh: currentUser!,
+            timestamp: new Date().toISOString(),
+        };
+        setPermintaanLaporanList(prev => [newPermintaan, ...prev]);
+        logActivity(`Membuat permintaan laporan baru: "${newPermintaan.nama}"`);
+    };
+
+    const handleCreatePengiriman = (pengiriman: Omit<PengirimanLaporan, 'id'|'dikirimOleh'|'tanggalPengiriman'|'status'>) => {
+        const newPengiriman: PengirimanLaporan = {
+            ...pengiriman,
+            id: `sub-${Date.now()}`,
+            dikirimOleh: currentUser!,
+            tanggalPengiriman: new Date().toISOString(),
+            status: 'Tepat Waktu', // Simplified status for now
+        };
+        setPengirimanLaporanList(prev => [newPengiriman, ...prev]);
+        const permintaanTerkait = permintaanLaporanList.find(p => p.id === newPengiriman.permintaanId);
+        logActivity(`Mengirimkan laporan: "${permintaanTerkait?.nama || ''}" untuk periode ${newPengiriman.periodeLaporan}`);
+    };
+    
+    const handleCreateTiket = (tiket: Omit<Tiket, 'id' | 'pembuat' | 'tanggalDibuat' | 'tanggalUpdate' | 'status' | 'balasan'>) => {
+        const newTiket: Tiket = {
+            ...tiket,
+            id: `tiket-${Date.now()}`,
+            pembuat: currentUser!,
+            tanggalDibuat: new Date().toISOString(),
+            tanggalUpdate: new Date().toISOString(),
+            status: 'Baru',
+            balasan: [],
+        };
+        setTiketList(prev => [newTiket, ...prev]);
+        logActivity(`Membuat tiket bantuan baru: "${newTiket.judul}"`);
+    };
+
+    const handleUpdateTiket = (updatedTiket: Tiket) => {
+        setTiketList(prev => prev.map(t => t.id === updatedTiket.id ? { ...updatedTiket, tanggalUpdate: new Date().toISOString() } : t));
+        logActivity(`Memperbarui tiket bantuan: "${updatedTiket.judul}"`);
+    };
+
+
     const clearInitialData = () => {
         setReplyingSurat(null);
     }
@@ -228,9 +307,11 @@ const App: React.FC = () => {
                     archivedCount={archivedSurat.length}
                     allSurat={allSurat}
                     allTugas={allTugas}
+                    permintaanLaporanList={permintaanLaporanList}
+                    pengirimanLaporanList={pengirimanLaporanList}
                     currentUser={currentUser}
-                    widgetSettings={widgetSettings}
-                    onWidgetSettingsChange={setWidgetSettings}
+                    widgetLayout={widgetLayout}
+                    onWidgetLayoutChange={setWidgetLayout}
                 />;
             case 'surat_masuk':
                 return <SuratMasukComponent
@@ -296,14 +377,51 @@ const App: React.FC = () => {
                     onAddKomentar={() => {}}
                     onAddTask={() => {}}
                 />;
+            case 'buku_agenda':
+                return <BukuAgenda allSurat={allSurat} allUsers={allUsers} />;
+            case 'perjalanan_dinas':
+                return <PerjalananDinasComponent
+                    perjalananDinasList={perjalananDinasList}
+                    suratKeluarList={suratKeluar}
+                    currentUser={currentUser}
+                    allUsers={allUsers}
+                    onAddLaporan={() => {}}
+                />;
+            case 'kalender':
+                return <Kalender
+                    allSurat={allSurat}
+                    allTugas={allTugas}
+                    perjalananDinasList={perjalananDinasList}
+                    currentUser={currentUser}
+                />;
             case 'arsip':
                 return <Arsip suratList={archivedSurat} folders={folders} kategoriList={kategoriList} currentUser={currentUser} onCreateFolder={()=>{}} />;
             case 'pencarian':
                 return <PencarianCerdas allSurat={allSurat} kategoriList={kategoriList} />;
             case 'laporan':
                 return <Laporan allSurat={allSurat} allKategori={kategoriList} allUsers={allUsers} kopSuratSettings={kopSuratSettings} unitKerjaList={unitKerjaList} currentUser={currentUser} />;
+            case 'pelaporan_periodik':
+                return <PelaporanPeriodik
+                    permintaanList={permintaanLaporanList}
+                    pengirimanList={pengirimanLaporanList}
+                    currentUser={currentUser}
+                    unitKerjaList={unitKerjaList}
+                    allUsers={allUsers}
+                    onCreatePermintaan={handleCreatePermintaan}
+                    onUpdatePermintaan={() => {}}
+                    onDeletePermintaan={() => {}}
+                    onCreatePengiriman={handleCreatePengiriman}
+                />;
             case 'verifikasi':
                 return <VerifikasiDokumen suratKeluarList={allSurat.filter(s => s.tipe === TipeSurat.KELUAR) as SuratKeluar[]} />;
+            case 'helpdesk':
+                return <Helpdesk
+                    tiketList={tiketList}
+                    currentUser={currentUser}
+                    allUsers={allUsers}
+                    onCreateTiket={handleCreateTiket}
+                    onUpdateTiket={handleUpdateTiket}
+                />;
             case 'administrasi':
                 return <Administrasi
                     users={allUsers}

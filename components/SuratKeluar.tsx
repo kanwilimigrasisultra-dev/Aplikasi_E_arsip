@@ -271,7 +271,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                                 <th scope="col" className="px-6 py-3">Perihal</th>
                                 <th scope="col" className="px-6 py-3">Tujuan</th>
                                 <th scope="col" className="px-6 py-3">Tanggal Surat</th>
-                                <th scope="col" className="px-6 py-3">Sifat</th>
+                                <th scope="col" className="px-6 py-3">Jenis</th>
                                 <th scope="col" className="px-6 py-3">Status</th>
                                 <th scope="col" className="px-6 py-3 text-center">Aksi</th>
                             </tr>
@@ -291,7 +291,11 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                                     <td className="px-6 py-4 max-w-xs truncate">{surat.perihal}</td>
                                     <td className="px-6 py-4">{surat.tujuan}</td>
                                     <td className="px-6 py-4">{new Date(surat.tanggal).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4">{getSifatBadge(surat.sifat)}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${surat.jenisSuratKeluar === 'SPPD' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'}`}>
+                                            {surat.jenisSuratKeluar}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4">
                                         {getStatusBadge(surat.status)}
                                     </td>
@@ -318,6 +322,7 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                 klasifikasiList={props.klasifikasiList}
                 unitKerjaList={props.unitKerjaList}
                 currentUser={props.currentUser}
+                allUsers={props.allUsers}
                 allSurat={props.allSurat}
                 allTemplates={props.allTemplates}
                 penomoranSettings={props.penomoranSettings}

@@ -48,7 +48,8 @@ type FormData = {
     tembusan?: string; // Stored as string in form, converted to string[] on submit
     tujuanUnitKerjaId?: string;
     pembuat?: User;
-    jenisSuratKeluar?: 'Biasa' | 'SK';
+// FIX: Added 'SPPD' to the type to match the TemplateSurat type.
+    jenisSuratKeluar?: 'Biasa' | 'SK' | 'SPPD';
     masalahUtamaId?: string;
     klasifikasiId?: string;
     ringkasan?: string;
