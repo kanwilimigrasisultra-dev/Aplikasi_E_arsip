@@ -55,7 +55,7 @@ const getInitialState = (tipe: TipeSurat, currentUser: User) => ({
         tanggalBerangkat: '',
         tanggalKembali: '',
         pesertaIds: [] as string[],
-        rincianBiaya: [] as Omit<RincianBiaya, 'id'>[],
+        rincianBiaya: [{ deskripsi: '', jumlah: 1, satuan: '', hargaSatuan: 0 }] as Omit<RincianBiaya, 'id'>[],
     },
 });
 
@@ -76,7 +76,6 @@ export const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                     kategoriId: s.kategoriId,
                     sifat: s.sifat,
                     attachments: s.attachments || [],
-                    // Type-specific fields
                     pengirim: (s as SuratMasuk).pengirim || '',
                     tanggalDiterima: (s as SuratMasuk).tanggalDiterima ? new Date((s as SuratMasuk).tanggalDiterima).toISOString().split('T')[0] : baseState.tanggalDiterima,
                     tujuan: (s as SuratKeluar).tujuan || '',
@@ -112,6 +111,30 @@ export const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
 
     const handleRichTextChange = (html: string) => {
         setFormState(prev => ({ ...prev, ringkasan: html }));
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            // FIX: Explicitly type the 'file' parameter as File to resolve property access errors.
+            Array.from(e.target.files).forEach((file: File) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const newAttachment: Attachment = {
+                        id: `att-${Date.now()}-${file.name}`,
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        content: event.target?.result as string,
+                    };
+                    setFormState(prev => ({...prev, attachments: [...prev.attachments, newAttachment]}));
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    };
+    
+    const removeAttachment = (id: string) => {
+        setFormState(prev => ({...prev, attachments: prev.attachments.filter(att => att.id !== id)}));
     };
 
     const handleGenerateNomorSurat = () => {
@@ -196,6 +219,87 @@ export const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
             </div>
         </>
     );
+
+    const handlePDChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof Omit<PerjalananDinas, 'id'|'suratTugasId'|'status'|'laporan'|'rincianBiaya'|'pesertaIds'>) => {
+        setFormState(prev => ({...prev, perjalananDinasData: {...prev.perjalananDinasData, [field]: e.target.value}}));
+    };
+    
+    const handlePDPesertaChange = (userId: string) => {
+        setFormState(prev => {
+            const pesertaIds = prev.perjalananDinasData.pesertaIds.includes(userId)
+                ? prev.perjalananDinasData.pesertaIds.filter(id => id !== userId)
+                : [...prev.perjalananDinasData.pesertaIds, userId];
+            return {...prev, perjalananDinasData: {...prev.perjalananDinasData, pesertaIds}};
+        });
+    };
+
+    const handlePDRincianChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        const newRincian = [...formState.perjalananDinasData.rincianBiaya];
+        (newRincian[index] as any)[name] = name === 'jumlah' || name === 'hargaSatuan' ? Number(value) : value;
+        setFormState(prev => ({...prev, perjalananDinasData: {...prev.perjalananDinasData, rincianBiaya: newRincian}}));
+    };
+
+    const addRincianBiaya = () => {
+        setFormState(prev => ({...prev, perjalananDinasData: {...prev.perjalananDinasData, rincianBiaya: [...prev.perjalananDinasData.rincianBiaya, { deskripsi: '', jumlah: 1, satuan: '', hargaSatuan: 0 }]}}));
+    };
+
+    const removeRincianBiaya = (index: number) => {
+        const newRincian = formState.perjalananDinasData.rincianBiaya.filter((_, i) => i !== index);
+        setFormState(prev => ({...prev, perjalananDinasData: {...prev.perjalananDinasData, rincianBiaya: newRincian}}));
+    };
+
+    const renderSPPDFields = () => (
+        <div className="md:col-span-2 mt-4 p-4 border-t-2 border-slate-200 border-dashed space-y-4">
+            <h4 className="text-md font-semibold text-slate-800">Detail Perjalanan Dinas (SPPD)</h4>
+            <div>
+                <label className="block text-sm font-medium text-slate-700">Tujuan Perjalanan</label>
+                <input type="text" value={formState.perjalananDinasData.tujuanPerjalanan} onChange={e => handlePDChange(e, 'tujuanPerjalanan')} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Kota Tujuan</label>
+                    <input type="text" value={formState.perjalananDinasData.kotaTujuan} onChange={e => handlePDChange(e, 'kotaTujuan')} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Tanggal Berangkat</label>
+                    <input type="date" value={formState.perjalananDinasData.tanggalBerangkat} onChange={e => handlePDChange(e, 'tanggalBerangkat')} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Tanggal Kembali</label>
+                    <input type="date" value={formState.perjalananDinasData.tanggalKembali} onChange={e => handlePDChange(e, 'tanggalKembali')} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                </div>
+            </div>
+             <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Peserta</label>
+                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {props.allUsers?.map(user => (
+                        <div key={user.id} className="flex items-center">
+                            <input id={`user-pd-${user.id}`} type="checkbox" checked={formState.perjalananDinasData.pesertaIds.includes(user.id)} onChange={() => handlePDPesertaChange(user.id)} className="h-4 w-4 text-slate-600 border-gray-300 rounded focus:ring-slate-500"/>
+                            <label htmlFor={`user-pd-${user.id}`} className="ml-2 text-sm text-gray-700">{user.nama}</label>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Rincian Biaya</label>
+                <div className="space-y-2">
+                    {formState.perjalananDinasData.rincianBiaya.map((rincian, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                            <input type="text" name="deskripsi" value={rincian.deskripsi} onChange={e => handlePDRincianChange(index, e)} placeholder="Deskripsi" className="col-span-5 text-sm border-gray-300 rounded-md"/>
+                            <input type="number" name="jumlah" value={rincian.jumlah} onChange={e => handlePDRincianChange(index, e)} placeholder="Jumlah" className="col-span-1 text-sm border-gray-300 rounded-md"/>
+                            <input type="text" name="satuan" value={rincian.satuan} onChange={e => handlePDRincianChange(index, e)} placeholder="Satuan" className="col-span-2 text-sm border-gray-300 rounded-md"/>
+                            <input type="number" name="hargaSatuan" value={rincian.hargaSatuan} onChange={e => handlePDRincianChange(index, e)} placeholder="Harga" className="col-span-3 text-sm border-gray-300 rounded-md"/>
+                            <button type="button" onClick={() => removeRincianBiaya(index)} className="col-span-1 text-red-500 hover:text-red-700"><TrashIcon className="w-5 h-5"/></button>
+                        </div>
+                    ))}
+                </div>
+                <button type="button" onClick={addRincianBiaya} className="mt-2 flex items-center text-sm text-slate-600 hover:text-slate-800">
+                    <PlusIcon className="w-4 h-4 mr-1"/> Tambah Rincian
+                </button>
+            </div>
+        </div>
+    );
     
     const renderSuratKeluarFields = () => (
         <>
@@ -249,6 +353,7 @@ export const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                 <label className="block text-sm font-medium text-slate-700">Ringkasan / Isi Surat</label>
                 <RichTextEditor value={formState.ringkasan} onChange={handleRichTextChange} />
             </div>
+             {formState.jenisSuratKeluar === 'SPPD' && renderSPPDFields()}
         </>
     );
 
@@ -293,17 +398,8 @@ export const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                          <div>
                             <label className="block text-sm font-medium text-slate-700">Nomor Surat</label>
                             <div className="flex items-center mt-1">
-                                <input 
-                                    type="text" 
-                                    name="nomorSurat" 
-                                    value={formState.nomorSurat} 
-                                    readOnly 
-                                    className={`block w-full shadow-sm sm:text-sm border-gray-300 rounded-l-md bg-slate-100 ${formState.nomorSurat ? 'font-bold text-slate-800' : ''}`}
-                                    placeholder="Klik untuk generate nomor"
-                                />
-                                <button type="button" onClick={handleGenerateNomorSurat} className="px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-r-md hover:bg-slate-700">
-                                    Generate
-                                </button>
+                                <input type="text" name="nomorSurat" value={formState.nomorSurat} readOnly className={`block w-full shadow-sm sm:text-sm border-gray-300 rounded-l-md bg-slate-100 ${formState.nomorSurat ? 'font-bold text-slate-800' : ''}`} placeholder="Klik untuk generate nomor" />
+                                <button type="button" onClick={handleGenerateNomorSurat} className="px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-r-md hover:bg-slate-700">Generate</button>
                             </div>
                         </div>
                     ) : (
@@ -333,11 +429,28 @@ export const SuratFormModal: React.FC<SuratFormModalProps> = (props) => {
                            {Object.values(SifatSurat).map(s => <option key={s as string} value={s as string}>{s}</option>)}
                         </select>
                     </div>
-
-                    {/* Type-specific fields */}
                     {tipe === TipeSurat.MASUK && renderSuratMasukFields()}
                     {tipe === TipeSurat.KELUAR && renderSuratKeluarFields()}
                     {tipe === TipeSurat.NOTA_DINAS && renderNotaDinasFields()}
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                    <label className="block text-sm font-medium text-slate-700">Lampiran</label>
+                    <div className="mt-1">
+                        <label htmlFor="file-upload" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50">
+                            <PaperClipIcon className="w-4 h-4 mr-2 inline-block"/>
+                            <span>Tambah File</span>
+                            <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} multiple/>
+                        </label>
+                    </div>
+                    <div className="space-y-2">
+                        {formState.attachments.map(att => (
+                            <div key={att.id} className="flex items-center justify-between p-2 bg-slate-100 rounded text-sm">
+                                <span className="truncate">{att.name} ({(att.size/1024).toFixed(1)} KB)</span>
+                                <button type="button" onClick={() => removeAttachment(att.id)} className="ml-2 text-red-500 hover:text-red-700"><XIcon className="w-4 h-4"/></button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex justify-end pt-6">

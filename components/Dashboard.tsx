@@ -100,7 +100,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     const [draggedWidgetId, setDraggedWidgetId] = useState<DashboardWidgetId | null>(null);
 
     const recentSurat = allSurat.slice(0, 5);
-    const myTasks = allTugas.filter(t => t.ditugaskanKepada.id === currentUser.id && t.status !== 'Selesai');
+    const myTasks = allTugas
+        .filter(t => t.ditugaskanKepada.id === currentUser.id && t.status !== 'Selesai')
+        .sort((a, b) => new Date(a.tanggalJatuhTempo).getTime() - new Date(b.tanggalJatuhTempo).getTime());
     
     const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.PIMPINAN;
 
