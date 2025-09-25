@@ -1,7 +1,7 @@
 import {
   User, UserRole, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat,
   SuratMasuk, SuratKeluar, TipeSurat, SifatSurat, Disposisi, SifatDisposisi, StatusDisposisi,
-  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, KebijakanRetensi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, Tugas, PermintaanLaporan, PengirimanLaporan, Tiket, BalasanTiket, PerjalananDinas, RincianBiaya, ChatRoom, ChatMessage
+  FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings, SignatureMethod, PenomoranSettings, BrandingSettings, KebijakanRetensi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, Tugas, PermintaanLaporan, PengirimanLaporan, Tiket, BalasanTiket, PerjalananDinas, RincianBiaya, ChatRoom, ChatMessage, MasterBiaya
 } from './types';
 
 // IDs for consistency
@@ -26,12 +26,12 @@ export const mockUnitKerja: UnitKerja[] = [
 ];
 
 export const mockUsers: User[] = [
-  { id: userPimpinanId, nama: 'Dr. Budi Santoso', email: 'budi.s@example.com', jabatan: 'Kepala Kantor Wilayah', role: UserRole.PIMPINAN, unitKerjaId: unitPusatId },
-  { id: userAdminId, nama: 'Citra Lestari', email: 'citra.l@example.com', jabatan: 'Admin Wilayah', role: UserRole.ADMIN, unitKerjaId: unitPusatId },
-  { id: userStaf1Id, nama: 'Adi Nugroho', email: 'adi.n@example.com', jabatan: 'Staf Umum', role: UserRole.STAF, unitKerjaId: unitCabang1Id },
-  { id: userStaf2Id, nama: 'Dewi Anggraini', email: 'dewi.a@example.com', jabatan: 'Staf Keuangan', role: UserRole.STAF, unitKerjaId: unitCabang2Id },
-  { id: userSuperAdminId, nama: 'Eka Wijaya', email: 'eka.w@example.com', jabatan: 'Super Admin', role: UserRole.SUPER_ADMIN, unitKerjaId: unitPusatId },
-  { id: userManajerialId, nama: 'Rina Hartono', email: 'rina.h@example.com', jabatan: 'Manajer Umum', role: UserRole.MANAJERIAL, unitKerjaId: unitPusatId },
+  { id: userPimpinanId, nama: 'Dr. Budi Santoso', nip: '198104072007031002', pangkatGolongan: 'Pembina Utama Muda (IV/c)', email: 'budi.s@example.com', jabatan: 'Kepala Kantor Wilayah', role: UserRole.PIMPINAN, unitKerjaId: unitPusatId, tanggalLahir: '1981-04-07' },
+  { id: userAdminId, nama: 'Citra Lestari', nip: '198505102010122001', pangkatGolongan: 'Penata Tingkat I (III/d)', email: 'citra.l@example.com', jabatan: 'Admin Wilayah', role: UserRole.ADMIN, unitKerjaId: unitPusatId, tanggalLahir: '1985-05-10' },
+  { id: userStaf1Id, nama: 'Adi Nugroho', nip: '199001152015031002', pangkatGolongan: 'Penata Muda (III/a)', email: 'adi.n@example.com', jabatan: 'Staf Umum', role: UserRole.STAF, unitKerjaId: unitCabang1Id, tanggalLahir: '1990-01-15' },
+  { id: userStaf2Id, nama: 'Dewi Anggraini', nip: '199208202016012003', pangkatGolongan: 'Penata Muda (III/a)', email: 'dewi.a@example.com', jabatan: 'Staf Keuangan', role: UserRole.STAF, unitKerjaId: unitCabang2Id, tanggalLahir: '1992-08-20' },
+  { id: userSuperAdminId, nama: 'Eka Wijaya', nip: '198001012005011001', pangkatGolongan: 'Pembina Utama (IV/e)', email: 'eka.w@example.com', jabatan: 'Super Admin', role: UserRole.SUPER_ADMIN, unitKerjaId: unitPusatId, tanggalLahir: '1980-01-01' },
+  { id: userManajerialId, nama: 'Rina Hartono', nip: '198303032008012002', pangkatGolongan: 'Pembina (IV/a)', email: 'rina.h@example.com', jabatan: 'Manajer Umum', role: UserRole.MANAJERIAL, unitKerjaId: unitPusatId, tanggalLahir: '1983-03-03' },
 ];
 
 export const mockKategori: KategoriSurat[] = [
@@ -55,6 +55,13 @@ export const mockKlasifikasi: KlasifikasiSurat[] = [
   { id: 'ks-4', masalahUtamaId: 'mu-4', kode: 'PR.01.01', deskripsi: 'Rencana Strategis' },
   { id: 'ks-5', masalahUtamaId: 'mu-5', kode: 'GR.01.01', deskripsi: 'Kebijakan Keimigrasian' },
   { id: 'ks-6', masalahUtamaId: 'mu-3', kode: 'KP.05.02', deskripsi: 'Perjalanan Dinas'},
+];
+
+export const mockMasterBiaya: MasterBiaya[] = [
+    { id: 'mb-1', namaBiaya: 'Uang Harian Gol. III', satuan: 'Hari', tarifDefault: 350000 },
+    { id: 'mb-2', namaBiaya: 'Transportasi Lokal (DKI Jakarta)', satuan: 'Hari', tarifDefault: 150000 },
+    { id: 'mb-3', namaBiaya: 'Akomodasi Tipe A (Hotel Bintang 3)', satuan: 'Malam', tarifDefault: 750000 },
+    { id: 'mb-4', namaBiaya: 'Tiket Pesawat PP (Ekonomi)', satuan: 'Tiket', tarifDefault: 1500000 },
 ];
 
 const disposisi1: Disposisi = {
@@ -101,15 +108,27 @@ export const mockPerjalananDinas: PerjalananDinas[] = [
         id: 'pd-1',
         suratTugasId: 'sk-6',
         tujuanPerjalanan: 'Melaksanakan monitoring dan evaluasi implementasi sistem E-Arsip di kantor cabang.',
+        tempatBerangkat: 'Kantor Wilayah I',
+        alatAngkut: 'Kendaraan Dinas',
         kotaTujuan: 'Jakarta Selatan',
         tanggalBerangkat: new Date('2023-11-25').toISOString(),
         tanggalKembali: new Date('2023-11-27').toISOString(),
-        pesertaIds: [userStaf1Id],
+        pegawaiUtamaId: userStaf1Id,
+        pengikut: [
+            { userId: userStaf2Id, keterangan: 'Operator Keuangan' }
+        ],
         rincianBiaya: [
             { id: 'rb-1', deskripsi: 'Transportasi PP', jumlah: 1, satuan: 'Tiket', hargaSatuan: 500000 },
             { id: 'rb-2', deskripsi: 'Akomodasi', jumlah: 2, satuan: 'Malam', hargaSatuan: 750000 },
             { id: 'rb-3', deskripsi: 'Uang Harian', jumlah: 3, satuan: 'Hari', hargaSatuan: 350000 },
         ],
+        pembebananAnggaranInstansi: 'Kantor Wilayah I',
+        pembebananAnggaranAkun: '524111',
+        tingkatBiaya: 'B',
+        dasarSuratTugasNomor: 'WIM.27.KP.05.02-1',
+        dasarSuratTugasTanggal: new Date('2023-11-20').toISOString(),
+        pejabatPembuatKomitmenId: userPimpinanId,
+        penandatanganPihakLainId: userManajerialId,
         status: 'Selesai',
         laporan: undefined,
     }
@@ -157,9 +176,9 @@ export const mockPengumuman: Pengumuman[] = [
 ];
 
 export const mockKopSuratSettings: KopSuratSettings = {
-    logoUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZHRoPSIxMDAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSI1MCIgeT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI0MCIgZmlsbD0iIzQ3NTU2OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC13ZWlnaHQ9ImJvbGQiPkVBPC90ZXh0Pjwvc3ZnPg==',
-    namaKementerian: 'KEMENTERIAN FIKSI INDONESIA',
-    namaDirektorat: 'DIREKTORAT JENDERAL PERSURATAN DIGITAL',
+    logoUrl: 'https://seeklogo.com/images/G/garuda-pancasila-logo-45A9A7A403-seeklogo.com.png',
+    namaKementerian: 'KEMENTERIAN KEUANGAN REPUBLIK INDONESIA',
+    namaDirektorat: 'DIREKTORAT JENDERAL IMIGRASI',
     sematkanLogoDiQRCode: true,
 };
 

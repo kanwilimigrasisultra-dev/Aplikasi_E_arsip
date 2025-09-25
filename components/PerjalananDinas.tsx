@@ -1,13 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { PerjalananDinas, SuratKeluar, User, LaporanPerjalananDinas, UserRole } from '../types';
+import { PerjalananDinas, SuratKeluar, User, LaporanPerjalananDinas, UserRole, KopSuratSettings, UnitKerja } from '../types';
 import { GlobeAltIcon } from './icons';
+import PerjalananDinasDetailModal from './PerjalananDinasDetailModal';
+import LaporanPerjalananDinasModal from './LaporanPerjalananDinasModal';
+
 
 interface PerjalananDinasProps {
     perjalananDinasList: PerjalananDinas[];
     suratKeluarList: SuratKeluar[];
     currentUser: User;
     allUsers: User[];
-    onAddLaporan: (perjalananDinasId: string, laporan: LaporanPerjalananDinas) => void;
+    kopSuratSettings: KopSuratSettings;
+    unitKerjaList: UnitKerja[];
+    onAddLaporan: (perjalananDinasId: string, laporan: Omit<LaporanPerjalananDinas, 'id' | 'tanggalPengiriman' | 'dikirimOleh'>) => void;
 }
 
 const getStatusBadge = (status: PerjalananDinas['status']) => {
@@ -19,8 +24,13 @@ const getStatusBadge = (status: PerjalananDinas['status']) => {
     return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colorMap[status]}`}>{status}</span>;
 }
 
-const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = ({ perjalananDinasList, suratKeluarList, currentUser, allUsers, onAddLaporan }) => {
+const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = (props) => {
+    const { perjalananDinasList, suratKeluarList, currentUser, allUsers, onAddLaporan } = props;
     
+    const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+    const [isLaporanModalOpen, setLaporanModalOpen] = useState(false);
+    const [selectedPD, setSelectedPD] = useState<(PerjalananDinas & { suratTugas?: SuratKeluar }) | null>(null);
+
     const myPerjalananDinas = useMemo(() => {
         const isAdminOrPimpinan = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PIMPINAN, UserRole.MANAJERIAL].includes(currentUser.role);
         
@@ -28,18 +38,33 @@ const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = ({ perjalananDi
             return perjalananDinasList;
         }
         
-        // Staf view: only see trips they are a participant in.
-        return perjalananDinasList.filter(pd => pd.pesertaIds.includes(currentUser.id));
+        return perjalananDinasList.filter(pd => pd.pegawaiUtamaId === currentUser.id || pd.pengikut.some(p => p.userId === currentUser.id));
 
     }, [perjalananDinasList, currentUser]);
-
 
     const combinedData = myPerjalananDinas.map(pd => {
         const suratTugas = suratKeluarList.find(s => s.id === pd.suratTugasId);
         return { ...pd, suratTugas };
     });
 
+    const handleOpenDetail = (item: PerjalananDinas & { suratTugas?: SuratKeluar }) => {
+        setSelectedPD(item);
+        setDetailModalOpen(true);
+    };
+
+    const handleOpenLaporan = (item: PerjalananDinas & { suratTugas?: SuratKeluar }) => {
+        setSelectedPD(item);
+        setLaporanModalOpen(true);
+    };
+    
+    const handleLaporanSubmit = (perjalananDinasId: string, laporan: Omit<LaporanPerjalananDinas, 'id' | 'tanggalPengiriman' | 'dikirimOleh'>) => {
+        onAddLaporan(perjalananDinasId, laporan);
+        setLaporanModalOpen(false);
+    };
+
+
     return (
+        <>
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
@@ -65,8 +90,10 @@ const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = ({ perjalananDi
                         <tbody>
                             {combinedData.map(item => {
                                 if (!item.suratTugas) return null;
-                                const peserta = item.pesertaIds.map(id => allUsers.find(u => u.id === id)?.nama).filter(Boolean).join(', ');
-                                const isParticipant = item.pesertaIds.includes(currentUser.id);
+                                const pesertaUtama = allUsers.find(u => u.id === item.pegawaiUtamaId)?.nama;
+                                const pengikutNames = item.pengikut.map(p => allUsers.find(u => u.id === p.userId)?.nama).filter(Boolean);
+                                const peserta = [pesertaUtama, ...pengikutNames].filter(Boolean).join(', ');
+                                const isParticipant = item.pegawaiUtamaId === currentUser.id || item.pengikut.some(p => p.userId === currentUser.id);
                                 const canSubmitLaporan = isParticipant && item.status === 'Selesai';
 
                                 return (
@@ -78,13 +105,13 @@ const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = ({ perjalananDi
                                     <td className="px-6 py-4">{getStatusBadge(item.status)}</td>
                                     <td className="px-6 py-4 text-center">
                                         <button 
-                                            onClick={() => alert('Fitur lihat detail SPPD sedang dikembangkan.')} 
+                                            onClick={() => handleOpenDetail(item)} 
                                             className="font-medium text-blue-600 hover:text-blue-800 mr-2"
                                         >
                                             Detail
                                         </button>
                                          <button 
-                                            onClick={() => alert('Fungsi Lapor sedang dikembangkan.')} 
+                                            onClick={() => handleOpenLaporan(item)} 
                                             disabled={!canSubmitLaporan}
                                             className="font-medium text-emerald-600 hover:text-emerald-800 disabled:text-slate-400 disabled:cursor-not-allowed"
                                         >
@@ -103,6 +130,28 @@ const PerjalananDinasComponent: React.FC<PerjalananDinasProps> = ({ perjalananDi
                 </div>
             </div>
         </div>
+        
+        {selectedPD && (
+            <PerjalananDinasDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setDetailModalOpen(false)}
+                pd={selectedPD}
+                suratTugas={selectedPD.suratTugas}
+                allUsers={allUsers}
+                kopSuratSettings={props.kopSuratSettings}
+                unitKerjaList={props.unitKerjaList}
+            />
+        )}
+        {selectedPD && (
+            <LaporanPerjalananDinasModal
+                isOpen={isLaporanModalOpen}
+                onClose={() => setLaporanModalOpen(false)}
+                pd={selectedPD}
+                onSubmit={handleLaporanSubmit}
+            />
+        )}
+
+        </>
     );
 };
 

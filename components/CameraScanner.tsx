@@ -20,6 +20,11 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ isOpen, onClose, onCaptur
         const startCamera = async () => {
             if (!isOpen) return;
             try {
+                // Stop any previous stream
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
                 mediaStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'environment' } 
                 });
@@ -27,6 +32,7 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ isOpen, onClose, onCaptur
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream;
                 }
+                setError(null);
             } catch (err) {
                 console.error("Error accessing camera:", err);
                 setError("Tidak dapat mengakses kamera. Pastikan Anda telah memberikan izin dan tidak ada aplikasi lain yang sedang menggunakannya.");
@@ -36,9 +42,14 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ isOpen, onClose, onCaptur
         startCamera();
 
         return () => {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-            }
+            // Cleanup function to stop the stream when the component unmounts or modal closes
+            const stopStream = (s: MediaStream | null) => {
+                if (s) {
+                    s.getTracks().forEach(track => track.stop());
+                }
+            };
+            stopStream(mediaStream);
+            stopStream(stream);
             setStream(null);
         };
     }, [isOpen]);

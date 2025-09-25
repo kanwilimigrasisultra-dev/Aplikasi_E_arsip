@@ -1,3 +1,4 @@
+// FIX: Removed self-import which caused declaration conflicts.
 
 export enum TipeSurat {
   MASUK = 'MASUK',
@@ -73,11 +74,14 @@ export interface Delegasi {
 export interface User {
   id: string;
   nama: string;
+  nip: string;
+  pangkatGolongan: string;
   email: string;
   jabatan: string;
   role: UserRole;
   unitKerjaId: string;
   delegasi?: Delegasi;
+  tanggalLahir: string;
 }
 
 export interface UnitKerja {
@@ -353,15 +357,30 @@ export interface LaporanPerjalananDinas {
   dikirimOleh: User;
 }
 
+export interface PengikutPerjalananDinas {
+  userId: string;
+  keterangan: string;
+}
+
 export interface PerjalananDinas {
   id: string;
   suratTugasId: string; // Links to a SuratKeluar of type SPPD
   tujuanPerjalanan: string;
+  tempatBerangkat: string;
+  alatAngkut: string;
   kotaTujuan: string;
   tanggalBerangkat: string;
   tanggalKembali: string;
-  pesertaIds: string[];
+  pegawaiUtamaId: string;
+  pengikut: PengikutPerjalananDinas[];
   rincianBiaya: RincianBiaya[];
+  pembebananAnggaranInstansi: string;
+  pembebananAnggaranAkun: string;
+  tingkatBiaya: string;
+  dasarSuratTugasNomor?: string;
+  dasarSuratTugasTanggal?: string;
+  pejabatPembuatKomitmenId?: string;
+  penandatanganPihakLainId?: string;
   status: 'Direncanakan' | 'Selesai' | 'Laporan Dikirim';
   laporan?: LaporanPerjalananDinas;
 }
@@ -391,4 +410,11 @@ export interface ChatRoom {
   memberIds: string[];
   suratId?: string; // Link to surat if it's a document-specific chat
   lastMessage?: ChatMessage;
+}
+
+export interface MasterBiaya {
+  id: string;
+  namaBiaya: string;
+  satuan: string;
+  tarifDefault: number;
 }

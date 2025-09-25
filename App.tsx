@@ -5,12 +5,13 @@ import {
     FolderArsip, Notifikasi, ActivityLog, AnySurat, KopSuratSettings, AppSettings,
     // FIX: Corrected typo from Penomoransettings to PenomoranSettings
     PenomoranSettings, BrandingSettings, KebijakanRetensi, TipeSurat, SifatDisposisi,
-    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardLayoutSettings, PermintaanLaporan, PengirimanLaporan, Tiket, PerjalananDinas, ChatRoom, ChatMessage, Disposisi, Komentar
+    StatusDisposisi, ApprovalStep, TemplateSurat, Pengumuman, NotaDinas, UserRole, Tugas, DashboardLayoutSettings, PermintaanLaporan, PengirimanLaporan, Tiket, PerjalananDinas, ChatRoom, ChatMessage, Disposisi, Komentar, LaporanPerjalananDinas, MasterBiaya
 } from './types';
 import {
-    // We can keep mock data for things not yet in the DB as a fallback
+    // FIX: Import mock data to be used for state initialization
+    mockAllSurat, mockUsers, mockUnitKerja, mockKategori, mockMasalahUtama, mockKlasifikasi,
     mockFolders, mockNotifikasi, mockActivityLogs, mockKopSuratSettings, mockAppSettings,
-    mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman, mockTugas, mockPermintaanLaporan, mockPengirimanLaporan, mockTiket, mockPerjalananDinas, mockChatRooms, mockChatMessages
+    mockPenomoranSettings, mockBrandingSettings, mockKebijakanRetensi, mockTemplates, mockPengumuman, mockTugas, mockPermintaanLaporan, mockPengirimanLaporan, mockTiket, mockPerjalananDinas, mockChatRooms, mockChatMessages, mockMasterBiaya
 } from './mock-data';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
@@ -78,19 +79,14 @@ const AppNav: React.FC<{ currentPage: Page; onNavigate: (page: Page) => void, cu
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // --- STATE MANAGEMENT ---
-    // Initialize with empty arrays, will be populated from backend
-    const [allSurat, setAllSurat] = useState<AnySurat[]>([]);
-    const [allUsers, setAllUsers] = useState<User[]>([]);
-    const [unitKerjaList, setUnitKerjaList] = useState<UnitKerja[]>([]);
-    const [kategoriList, setKategoriList] = useState<KategoriSurat[]>([]);
-    const [masalahUtamaList, setMasalahUtamaList] = useState<MasalahUtama[]>([]);
-    const [klasifikasiList, setKlasifikasiList] = useState<KlasifikasiSurat[]>([]);
     
-    // Fallback to mock data for features not yet migrated to DB
+    // --- STATE MANAGEMENT ---
+    const [allSurat, setAllSurat] = useState<AnySurat[]>(mockAllSurat);
+    const [allUsers, setAllUsers] = useState<User[]>(mockUsers);
+    const [unitKerjaList, setUnitKerjaList] = useState<UnitKerja[]>(mockUnitKerja);
+    const [kategoriList, setKategoriList] = useState<KategoriSurat[]>(mockKategori);
+    const [masalahUtamaList, setMasalahUtamaList] = useState<MasalahUtama[]>(mockMasalahUtama);
+    const [klasifikasiList, setKlasifikasiList] = useState<KlasifikasiSurat[]>(mockKlasifikasi);
     const [folders, setFolders] = useState<FolderArsip[]>(mockFolders);
     const [allTugas, setAllTugas] = useState<Tugas[]>(mockTugas);
     const [notifications, setNotifications] = useState<Notifikasi[]>(mockNotifikasi);
@@ -103,6 +99,7 @@ const App: React.FC = () => {
     const [perjalananDinasList, setPerjalananDinasList] = useState<PerjalananDinas[]>(mockPerjalananDinas);
     const [chatRooms, setChatRooms] = useState<ChatRoom[]>(mockChatRooms);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>(mockChatMessages);
+    const [masterBiayaList, setMasterBiayaList] = useState<MasterBiaya[]>(mockMasterBiaya);
     
     // Settings state
     const [appSettings, setAppSettings] = useState<AppSettings>(mockAppSettings);
@@ -121,68 +118,19 @@ const App: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<Page>('dashboard');
     const [replyingSurat, setReplyingSurat] = useState<(Partial<SuratKeluar> & { suratAsli?: SuratMasuk }) | null>(null);
 
-    // --- DATA FETCHING FROM BACKEND ---
-    useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const response = await fetch('/api.php');
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Error HTTP ${response.status}: ${errorText}`);
-                }
-                
-                const responseText = await response.text();
-                if (!responseText) {
-                    throw new Error("Respons dari server kosong. Pastikan 'api.php' ada dan dapat diakses.");
-                }
-
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                } catch (jsonError) {
-                    console.error("Gagal mem-parsing JSON:", jsonError);
-                    console.error("Respons mentah dari server:", responseText);
-                    throw new Error(`Server memberikan data yang tidak valid. Ini mungkin karena ada error di PHP. Respons mentah: ${responseText.substring(0, 300)}...`);
-                }
-
-                if (data.error) {
-                    throw new Error(`Error dari backend: ${data.error}`);
-                }
-                
-                // Populate state with data from the database
-                if(data.allSurat) setAllSurat(data.allSurat);
-                if(data.allUsers) setAllUsers(data.allUsers);
-                if(data.unitKerjaList) setUnitKerjaList(data.unitKerjaList);
-                if(data.kategoriList) setKategoriList(data.kategoriList);
-                if(data.masalahUtamaList) setMasalahUtamaList(data.masalahUtamaList);
-                if(data.klasifikasiList) setKlasifikasiList(data.klasifikasiList);
-                
-            } catch (e: any) {
-                console.error("Tidak dapat mengambil data dari backend:", e);
-                setError(`Gagal memuat data dari server. Pastikan server lokal (Laragon/XAMPP) berjalan dan file 'api.php' dapat diakses tanpa error. Detail: ${e.message}`);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchInitialData();
-    }, []);
-
     const handleLogin = useCallback((email: string) => {
-        // First, check if users have been loaded from backend
         if (allUsers.length === 0) {
-            setError("Data pengguna belum termuat. Periksa koneksi ke backend.");
+            alert("Terjadi kesalahan: Data pengguna tidak tersedia.");
             return;
         }
         const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user) {
             setCurrentUser(user);
         } else {
-            alert('Login Gagal: Pengguna tidak ditemukan. Silakan periksa database Anda.');
+            alert('Login Gagal: Pengguna tidak ditemukan. Coba email dari data mock, contoh: eka.w@example.com (Super Admin), budi.s@example.com (Pimpinan), atau adi.n@example.com (Staf).');
         }
     }, [allUsers]);
 
-    // ... (All other handler functions like logActivity, createNotification, etc. remain the same)
     const logActivity = useCallback((action: string) => {
         if (currentUser) {
             const newLog: ActivityLog = { id: `log-${Date.now()}`, user: currentUser.nama, action, timestamp: new Date().toISOString() };
@@ -202,7 +150,6 @@ const App: React.FC = () => {
     }, []);
 
     const handleResetData = useCallback(() => {
-        // This function might need to call a specific API endpoint in the future to reset DB data
         alert("Fungsi reset data perlu diimplementasikan di backend.");
     }, []);
     
@@ -212,7 +159,6 @@ const App: React.FC = () => {
 
     const handleSuratSubmit = (surat: any) => {
         alert("Fungsi 'Submit Surat' perlu diimplementasikan di backend untuk menyimpan data baru ke database.");
-        // Placeholder logic to keep UI responsive
         const nextNomorAgenda = allSurat.length > 0 ? Math.max(...allSurat.map(s => s.nomorAgenda || 0)) + 1 : 1;
         const baseProps = {
             id: `new-${Date.now()}`, isArchived: false, fileUrl: '#', unitKerjaId: currentUser!.unitKerjaId,
@@ -225,7 +171,6 @@ const App: React.FC = () => {
         setAllSurat(prev => [newSurat, ...prev]);
     };
     
-    // ... (keep all other handlers like handleArchive, handleAddDisposisi, etc.)
     const handleArchive = (suratId: string, folderId: string) => {
         setAllSurat(prev => prev.map(s => s.id === suratId ? { ...s, isArchived: true, folderId } : s));
         logActivity(`Mengarsipkan surat dengan ID: ${suratId}`);
@@ -311,26 +256,29 @@ const App: React.FC = () => {
     const handleCreateTiket = (tiket: Omit<Tiket, 'id' | 'pembuat' | 'tanggalDibuat' | 'tanggalUpdate' | 'status' | 'balasan'>) => { const newTiket: Tiket = { ...tiket, id: `tiket-${Date.now()}`, pembuat: currentUser!, tanggalDibuat: new Date().toISOString(), tanggalUpdate: new Date().toISOString(), status: 'Baru', balasan: [] }; setTiketList(prev => [newTiket, ...prev]); logActivity(`Membuat tiket bantuan baru: "${newTiket.judul}"`); };
     const handleUpdateTiket = (updatedTiket: Tiket) => { setTiketList(prev => prev.map(t => t.id === updatedTiket.id ? { ...updatedTiket, tanggalUpdate: new Date().toISOString() } : t)); logActivity(`Memperbarui tiket bantuan: "${updatedTiket.judul}"`); };
     const handleSendMessage = (roomId: string, text: string) => { const newMessage: ChatMessage = { id: `msg-${Date.now()}`, roomId, senderId: currentUser!.id, text, timestamp: new Date().toISOString() }; setChatMessages(prev => [...prev, newMessage]); setChatRooms(prev => prev.map(room => room.id === roomId ? { ...room, lastMessage: newMessage } : room)); };
+    
+    const handleAddLaporanPerjalananDinas = (perjalananDinasId: string, laporan: Omit<LaporanPerjalananDinas, 'id' | 'tanggalPengiriman' | 'dikirimOleh'>) => {
+        const newLaporan: LaporanPerjalananDinas = {
+            ...laporan,
+            id: `laporan-pd-${Date.now()}`,
+            tanggalPengiriman: new Date().toISOString(),
+            dikirimOleh: currentUser!,
+        };
+
+        setPerjalananDinasList(prevList => 
+            prevList.map(pd => 
+                pd.id === perjalananDinasId 
+                    ? { ...pd, laporan: newLaporan, status: 'Laporan Dikirim' } 
+                    : pd
+            )
+        );
+        logActivity(`Mengirimkan laporan untuk perjalanan dinas ke ${perjalananDinasList.find(pd => pd.id === perjalananDinasId)?.kotaTujuan}`);
+    };
+    
     const handleNotificationClick = (suratId: string, notifId: string) => { setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, isRead: true } : n)); const surat = allSurat.find(s => s.id === suratId); if (!surat) return; if (surat.tipe === TipeSurat.MASUK) setCurrentPage('surat_masuk'); else if (surat.tipe === TipeSurat.KELUAR) setCurrentPage('surat_keluar'); else if (surat.tipe === TipeSurat.NOTA_DINAS) setCurrentPage('nota_dinas'); };
     const activePengumuman = useMemo(() => pengumumanList.filter(p => { const now = new Date(); const startDate = new Date(p.tanggalMulai); const endDate = new Date(p.tanggalSelesai); startDate.setHours(0,0,0,0); endDate.setHours(23,59,59,999); return p.isActive && now >= startDate && now <= endDate; }), [pengumumanList]);
     const clearInitialData = () => { setReplyingSurat(null); }
 
-    // --- RENDER LOGIC ---
-
-    if (isLoading) {
-        return <div className="flex items-center justify-center h-screen bg-slate-100 text-slate-600">Memuat data aplikasi...</div>;
-    }
-    if (error) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-red-50 text-red-700 p-8">
-                <div className="max-w-2xl text-center">
-                    <h2 className="text-xl font-bold mb-4">Terjadi Kesalahan</h2>
-                    <p className="text-left bg-red-100 p-4 rounded-md whitespace-pre-wrap font-mono text-sm">{error}</p>
-                </div>
-            </div>
-        );
-    }
-    
     if (!currentUser) {
         return <LoginPage onLogin={handleLogin} brandingSettings={brandingSettings} />;
     }
@@ -391,6 +339,8 @@ const App: React.FC = () => {
                     appSettings={appSettings}
                     penomoranSettings={penomoranSettings}
                     folders={folders}
+                    masterBiayaList={masterBiayaList}
+                    perjalananDinasList={perjalananDinasList}
                     onSubmit={handleSuratSubmit}
                     onUpdate={handleSuratUpdate}
                     onArchive={handleArchive}
@@ -435,7 +385,9 @@ const App: React.FC = () => {
                     suratKeluarList={suratKeluar}
                     currentUser={currentUser}
                     allUsers={allUsers}
-                    onAddLaporan={() => {}}
+                    onAddLaporan={handleAddLaporanPerjalananDinas}
+                    kopSuratSettings={kopSuratSettings}
+                    unitKerjaList={unitKerjaList}
                 />;
             case 'kalender':
                 return <Kalender
@@ -482,6 +434,7 @@ const App: React.FC = () => {
                     kebijakanRetensiList={kebijakanRetensi}
                     templateList={templates}
                     pengumumanList={pengumumanList}
+                    masterBiayaList={masterBiayaList}
                     activityLogs={activityLogs}
                     allSurat={allSurat}
                     currentUser={currentUser}
@@ -494,6 +447,7 @@ const App: React.FC = () => {
                         setKebijakanRetensiList: setKebijakanRetensi,
                         setTemplateList: setTemplates,
                         setPengumumanList: setPengumumanList,
+                        setMasterBiayaList: setMasterBiayaList,
                         logActivity,
                         onResetData: handleResetData,
                     }}

@@ -8,7 +8,7 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin, brandingSettings }) => {
-    const [email, setEmail] = useState('eka.w@example.com');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('password');
     const [captcha, setCaptcha] = useState('');
     const [captchaInput, setCaptchaInput] = useState('');
@@ -135,6 +135,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, brandingSettings }) => {
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-slate-500 focus:border-slate-500"
+                                placeholder="e.g., eka.w@example.com"
                             />
                         </div>
                         <div>

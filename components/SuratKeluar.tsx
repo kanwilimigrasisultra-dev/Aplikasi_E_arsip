@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk, ApprovalStep, TemplateSurat, Tugas } from '../types';
+import { SuratKeluar as TSuratKeluar, KategoriSurat, SifatSurat, User, AnySurat, KopSuratSettings, AppSettings, FolderArsip, UnitKerja, MasalahUtama, KlasifikasiSurat, PenomoranSettings, TipeSurat, SuratMasuk as TSuratMasuk, ApprovalStep, TemplateSurat, Tugas, MasterBiaya, PerjalananDinas as TPerjalananDinas } from '../types';
 import { PlusIcon, SearchIcon, RefreshIcon, ArchiveIcon } from './icons';
 // FIX: Changed import to be a named import.
 import { SuratFormModal } from './SuratFormModal';
@@ -34,6 +34,8 @@ interface SuratKeluarProps {
     appSettings: AppSettings;
     penomoranSettings: PenomoranSettings;
     folders: FolderArsip[];
+    masterBiayaList: MasterBiaya[];
+    perjalananDinasList: TPerjalananDinas[];
     onSubmit: (surat: Omit<AnySurat, 'id' | 'isArchived' | 'fileUrl' | 'unitKerjaId' | 'disposisi' | 'status' | 'version' | 'history' | 'approvalChain' | 'komentar' | 'tugasTerkait' | 'dokumenTerkait'>) => void;
     onUpdate: (surat: AnySurat) => void;
     onArchive: (suratId: string, folderId: string) => void;
@@ -326,6 +328,8 @@ const SuratKeluar: React.FC<SuratKeluarProps> = (props) => {
                 allSurat={props.allSurat}
                 allTemplates={props.allTemplates}
                 penomoranSettings={props.penomoranSettings}
+                masterBiayaList={props.masterBiayaList}
+                perjalananDinasList={props.perjalananDinasList}
                 suratToEdit={suratToEdit}
                 initialData={props.initialData}
             />

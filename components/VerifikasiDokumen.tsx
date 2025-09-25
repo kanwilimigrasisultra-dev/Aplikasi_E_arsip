@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SuratKeluar } from '../types';
-import { ShieldCheckIcon, ShieldExclamationIcon } from './icons';
+import { ShieldCheckIcon, ShieldExclamationIcon, CameraIcon } from './icons';
+import CameraScanner from './CameraScanner';
 
 interface VerifikasiDokumenProps {
     suratKeluarList: SuratKeluar[];
@@ -12,29 +13,40 @@ const VerifikasiDokumen: React.FC<VerifikasiDokumenProps> = ({ suratKeluarList }
     const [status, setStatus] = useState<VerificationStatus>('idle');
     const [verifiedSurat, setVerifiedSurat] = useState<SuratKeluar | null>(null);
     const [fileName, setFileName] = useState('');
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+
+    const startVerification = (simulatedFileName: string) => {
+        setFileName(simulatedFileName);
+        setStatus('checking');
+        setVerifiedSurat(null);
+
+        // --- SIMULATION LOGIC ---
+        // In a real app, you would parse the file (e.g., a QR code in a PDF)
+        // to get a unique document ID and then query the database.
+        // Here, we'll simulate this by picking a signed document from our mock data.
+        setTimeout(() => {
+            const signedSurat = suratKeluarList.find(s => s.id === 'sk-2'); // Let's check against a specific signed letter
+
+            if (signedSurat && simulatedFileName.includes('Balasan')) { // Simulate a match
+                setVerifiedSurat(signedSurat);
+                setStatus('valid');
+            } else {
+                setStatus('invalid');
+            }
+        }, 2000);
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const file = e.target.files[0];
-            setFileName(file.name);
-            setStatus('checking');
-            setVerifiedSurat(null);
-
-            // --- SIMULATION LOGIC ---
-            // In a real app, you would parse the file (e.g., a QR code in a PDF)
-            // to get a unique document ID and then query the database.
-            // Here, we'll simulate this by picking a signed document from our mock data.
-            setTimeout(() => {
-                const signedSurat = suratKeluarList.find(s => s.id === 'sk-2'); // Let's check against a specific signed letter
-
-                if (signedSurat && file.name.includes('Balasan')) { // Simulate a match
-                    setVerifiedSurat(signedSurat);
-                    setStatus('valid');
-                } else {
-                    setStatus('invalid');
-                }
-            }, 2000);
+            startVerification(file.name);
         }
+    };
+    
+    const handleCapture = (imageDataUrl: string) => {
+        setIsCameraOpen(false);
+        // Simulate verification from a captured image
+        startVerification('Pindaian Kamera - Balasan Undangan.jpg'); 
     };
 
     const renderStatus = () => {
@@ -86,33 +98,44 @@ const VerifikasiDokumen: React.FC<VerifikasiDokumenProps> = ({ suratKeluarList }
     };
 
     return (
-        <div className="space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-                <div className="flex items-center mb-2">
-                    <ShieldCheckIcon className="w-6 h-6 mr-3 text-emerald-700" />
-                    <h3 className="text-xl font-bold text-slate-800">Verifikasi Dokumen</h3>
-                </div>
-                <p className="text-sm text-slate-500 mb-6">Pastikan keaslian surat keluar dengan memvalidasi tanda tangan digital yang tertera.</p>
-                
-                <div className="flex flex-col items-center justify-center w-full">
-                    <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <svg className="w-8 h-8 mb-4 text-slate-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                            </svg>
-                            <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Klik untuk mengunggah</span> atau seret file ke sini</p>
-                            <p className="text-xs text-slate-500">PDF, PNG, atau JPG (Simulasi)</p>
+        <>
+            <div className="space-y-6">
+                <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                    <div className="flex items-center mb-2">
+                        <ShieldCheckIcon className="w-6 h-6 mr-3 text-emerald-700" />
+                        <h3 className="text-xl font-bold text-slate-800">Verifikasi Dokumen</h3>
+                    </div>
+                    <p className="text-sm text-slate-500 mb-6">Pastikan keaslian surat keluar dengan memvalidasi tanda tangan digital yang tertera.</p>
+                    
+                    <div className="flex flex-col items-center justify-center w-full">
+                        <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <svg className="w-8 h-8 mb-4 text-slate-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                </svg>
+                                <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Klik untuk mengunggah</span> atau seret file ke sini</p>
+                                <p className="text-xs text-slate-500">PDF, PNG, atau JPG (Simulasi)</p>
+                            </div>
+                            <input id="file-upload" type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.png,.jpg,.jpeg" />
+                        </label>
+                         <div className="relative w-full flex justify-center mt-4">
+                             <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-gray-300"></div></div>
+                             <div className="relative flex justify-center"><span className="px-2 bg-white text-sm text-gray-500">atau</span></div>
                         </div>
-                        <input id="file-upload" type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.png,.jpg,.jpeg" />
-                    </label>
-                    {fileName && <p className="mt-2 text-sm text-slate-600">File yang dipilih: {fileName}</p>}
+                        <button onClick={() => setIsCameraOpen(true)} className="mt-4 inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-700 hover:bg-slate-800">
+                           <CameraIcon className="w-5 h-5 mr-2" />
+                            Pindai dengan Kamera
+                        </button>
+                        {fileName && <p className="mt-2 text-sm text-slate-600">File yang diperiksa: {fileName}</p>}
+                    </div>
                 </div>
-            </div>
 
-             <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200 min-h-[300px] flex items-center justify-center">
-                {renderStatus()}
-             </div>
-        </div>
+                 <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200 min-h-[300px] flex items-center justify-center">
+                    {renderStatus()}
+                 </div>
+            </div>
+            {isCameraOpen && <CameraScanner isOpen={isCameraOpen} onClose={() => setIsCameraOpen(false)} onCapture={handleCapture} />}
+        </>
     );
 };
 

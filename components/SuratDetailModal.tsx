@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AnySurat, SuratMasuk, SuratKeluar, TipeSurat, KategoriSurat, User, SifatDisposisi, StatusDisposisi, KopSuratSettings, AppSettings, UnitKerja, SignatureMethod, MasalahUtama, KlasifikasiSurat, ApprovalStep, Tugas, NotaDinas } from '../types';
 import Modal from './Modal';
-import { ArchiveIcon, CheckCircleIcon, ClockIcon, LinkIcon, PencilAltIcon, PlusIcon, PrinterIcon, SparklesIcon, PaperClipIcon, UsersIcon, TrashIcon, ShieldCheckIcon } from './icons';
+import { ArchiveIcon, CheckCircleIcon, ClockIcon, LinkIcon, PencilAltIcon, PlusIcon, PrinterIcon, SparklesIcon, PaperClipIcon, UsersIcon, TrashIcon, ShieldCheckIcon, ClipboardListIcon } from './icons';
 import SuratPrintModal from './SuratPrintModal';
 import LembarDisposisiPrintModal from './LembarDisposisiPrintModal';
 // Note: In a real app, you would use a proper signature pad library
@@ -290,15 +290,17 @@ const SuratDetailModal: React.FC<SuratDetailModalProps> = (props) => {
                             {isSuratMasuk && <TabButton label="Disposisi" isActive={activeTab === 'disposisi'} onClick={() => setActiveTab('disposisi')} />}
                             {isSuratKeluar && <TabButton label={`Riwayat & Persetujuan (v${surat.version})`} isActive={activeTab === 'approval'} onClick={() => setActiveTab('approval')} />}
                             {isSuratKeluar && <TabButton label="Tanda Tangan" isActive={activeTab === 'ttd'} onClick={() => setActiveTab('ttd')} disabled={surat.status !== 'Disetujui'} />}
+                            <TabButton label="Tugas Terkait" isActive={activeTab === 'tugas'} onClick={() => setActiveTab('tugas')} />
                             <TabButton label="Komentar" isActive={activeTab === 'komentar'} onClick={() => setActiveTab('komentar')} />
                         </nav>
                     </div>
                     
                     <div className="pt-2">
                         {activeTab === 'detail' && renderDetailInfo()}
-                        {activeTab === 'disposisi' && renderDisposisi()}
-                        {activeTab === 'approval' && renderApprovalAndHistory()}
-                        {activeTab === 'ttd' && renderTandaTangan()}
+                        {activeTab === 'disposisi' && isSuratMasuk && <DisposisiSection {...props} />}
+                        {activeTab === 'approval' && isSuratKeluar && <ApprovalAndHistorySection {...props} />}
+                        {activeTab === 'ttd' && isSuratKeluar && renderTandaTangan()}
+                        {activeTab === 'tugas' && <TugasSection {...props} />}
                         {activeTab === 'komentar' && <KomentarSection {...props} />}
                     </div>
                 </div>
@@ -548,10 +550,87 @@ const KomentarSection: React.FC<SuratDetailModalProps> = ({ surat, onAddKomentar
     );
 };
 
+const TugasSection: React.FC<SuratDetailModalProps> = ({ surat, allUsers, currentUser, onAddTask }) => {
+    const [showForm, setShowForm] = useState(false);
+    const [deskripsi, setDeskripsi] = useState('');
+    const [tujuanId, setTujuanId] = useState('');
+    const [tanggalJatuhTempo, setTanggalJatuhTempo] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (deskripsi && tujuanId && tanggalJatuhTempo) {
+            const tujuanUser = allUsers.find(u => u.id === tujuanId);
+            if (!tujuanUser) return;
+            const newTask: Omit<Tugas, 'id'> = {
+                suratId: surat.id,
+                deskripsi,
+                ditugaskanKepada: tujuanUser,
+                tanggalJatuhTempo,
+                status: 'Belum Dikerjakan',
+                dibuatOleh: currentUser,
+            };
+            onAddTask(newTask);
+            setShowForm(false);
+            setDeskripsi('');
+            setTujuanId('');
+            setTanggalJatuhTempo('');
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center">
+                <h4 className="font-semibold text-slate-800">Tugas Terkait Surat</h4>
+                <button onClick={() => setShowForm(!showForm)} className="flex items-center bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 text-sm font-medium">
+                    <PlusIcon className="w-4 h-4 mr-2" /> {showForm ? 'Batal' : 'Tambah Tugas'}
+                </button>
+            </div>
+            {showForm && (
+                <form onSubmit={handleSubmit} className="p-4 bg-slate-50 border rounded-lg space-y-3">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700">Deskripsi Tugas</label>
+                        <textarea value={deskripsi} onChange={e => setDeskripsi(e.target.value)} required rows={2} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700">Tugaskan Kepada</label>
+                            <select value={tujuanId} onChange={e => setTujuanId(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                <option value="">Pilih Pengguna</option>
+                                {allUsers.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700">Tanggal Jatuh Tempo</label>
+                            <input type="date" value={tanggalJatuhTempo} onChange={e => setTanggalJatuhTempo(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"/>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800">Simpan Tugas</button>
+                    </div>
+                </form>
+            )}
+            <div className="space-y-2">
+                {surat.tugasTerkait.length > 0 ? surat.tugasTerkait.map(t => (
+                    <div key={t.id} className="p-3 border rounded-lg flex justify-between items-center">
+                        <div>
+                            <p className="font-medium">{t.deskripsi}</p>
+                            <p className="text-xs text-slate-500">Untuk: {t.ditugaskanKepada.nama} | Jatuh Tempo: {new Date(t.tanggalJatuhTempo).toLocaleDateString()}</p>
+                        </div>
+                        <span className="text-xs font-semibold bg-slate-100 text-slate-800 px-2 py-1 rounded-full">{t.status}</span>
+                    </div>
+                )) : (
+                    <p className="text-center text-sm text-slate-500 p-4">Belum ada tugas terkait surat ini.</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
 const InfoItem: React.FC<{ label: string; value: string }> = ({ label, value }) => (
     <div>
         <p className="font-semibold text-slate-800">{label}</p>
-        <p className="text-slate-600">{value}</p>
+        <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: value }}></div>
     </div>
 );
 

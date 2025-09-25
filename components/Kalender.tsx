@@ -51,7 +51,7 @@ const Kalender: React.FC<KalenderProps> = ({ allSurat, allTugas, perjalananDinas
 
         // 3. Process Perjalanan Dinas
         perjalananDinasList.forEach(pd => {
-            if (pd.pesertaIds.includes(currentUser.id)) {
+            if (pd.pegawaiUtamaId === currentUser.id || pd.pengikut.some(p => p.userId === currentUser.id)) {
                 calendarEvents.push({
                     id: `pd-${pd.id}`,
                     title: `Perjalanan Dinas: ${pd.kotaTujuan}`,

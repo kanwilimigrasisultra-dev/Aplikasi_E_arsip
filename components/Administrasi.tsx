@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat, KebijakanRetensi, TemplateSurat, Pengumuman, ActivityLog, AnySurat, UserRole } from '../types';
+import { User, UnitKerja, KategoriSurat, MasalahUtama, KlasifikasiSurat, KebijakanRetensi, TemplateSurat, Pengumuman, ActivityLog, AnySurat, UserRole, MasterBiaya } from '../types';
 import ManajemenPengguna from './ManajemenPengguna';
 import ManajemenUnitKerja from './ManajemenUnitKerja';
 import ManajemenKategori from './ManajemenKategori';
@@ -11,9 +11,10 @@ import ManajemenPengumuman from './ManajemenPengumuman';
 import ManajemenAnalitik from './ManajemenAnalitik';
 import LogAktivitas from './LogAktivitas';
 import ManajemenData from './ManajemenData';
-import { UsersIcon, OfficeBuildingIcon, TagIcon, ArchiveBoxArrowDownIcon, ClipboardListIcon, MegaphoneIcon } from './icons';
+import { UsersIcon, OfficeBuildingIcon, TagIcon, ArchiveBoxArrowDownIcon, ClipboardListIcon, MegaphoneIcon, GlobeAltIcon } from './icons';
+import ManajemenMasterBiaya from './ManajemenMasterBiaya';
 
-type AdminTab = 'pengguna' | 'unit_kerja' | 'kategori' | 'masalah_utama' | 'klasifikasi' | 'template' | 'retensi' | 'pengumuman' | 'analitik' | 'log' | 'data';
+type AdminTab = 'pengguna' | 'unit_kerja' | 'kategori' | 'masalah_utama' | 'klasifikasi' | 'template' | 'retensi' | 'pengumuman' | 'master_biaya' | 'analitik' | 'log' | 'data';
 
 interface AdministrasiProps {
     users: User[];
@@ -24,6 +25,7 @@ interface AdministrasiProps {
     kebijakanRetensiList: KebijakanRetensi[];
     templateList: TemplateSurat[];
     pengumumanList: Pengumuman[];
+    masterBiayaList: MasterBiaya[];
     activityLogs: ActivityLog[];
     allSurat: AnySurat[];
     currentUser: User;
@@ -54,6 +56,8 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
                 return <ManajemenTemplate templateList={props.templateList} kategoriList={props.kategoriList} masalahUtamaList={props.masalahUtamaList} onSubmit={() => {}} onDelete={() => {}} />;
             case 'pengumuman':
                 return <ManajemenPengumuman pengumumanList={props.pengumumanList} currentUser={props.currentUser} onSubmit={() => {}} onDelete={() => {}} />;
+            case 'master_biaya':
+                return <ManajemenMasterBiaya masterBiayaList={props.masterBiayaList} onUpdate={() => {}} onCreate={() => {}} onDelete={() => {}} />;
             case 'analitik':
                 return <ManajemenAnalitik allSurat={props.allSurat} allUsers={props.users} unitKerjaList={props.unitKerjaList} />;
             case 'log':
@@ -83,6 +87,7 @@ const Administrasi: React.FC<AdministrasiProps> = (props) => {
         { id: 'klasifikasi', label: 'Klasifikasi', icon: <TagIcon className="w-5 h-5"/> },
         { id: 'template', label: 'Template Surat', icon: <ClipboardListIcon className="w-5 h-5"/> },
         { id: 'retensi', label: 'Retensi Arsip', icon: <ArchiveBoxArrowDownIcon className="w-5 h-5"/> },
+        { id: 'master_biaya', label: 'Master Biaya', icon: <GlobeAltIcon className="w-5 h-5"/> },
         { id: 'pengumuman', label: 'Pengumuman', icon: <MegaphoneIcon className="w-5 h-5"/> },
     ];
     

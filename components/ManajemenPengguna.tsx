@@ -21,54 +21,58 @@ const UserFormModal: React.FC<{
     currentUser: User;
 }> = ({ isOpen, onClose, onSubmit, userToEdit, unitKerjaList, currentUser }) => {
     const [nama, setNama] = useState('');
+    const [nip, setNip] = useState('');
+    const [pangkatGolongan, setPangkatGolongan] = useState('');
     const [email, setEmail] = useState('');
     const [jabatan, setJabatan] = useState('');
+    const [tanggalLahir, setTanggalLahir] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<UserRole>(UserRole.STAF);
     const [unitKerjaId, setUnitKerjaId] = useState('');
 
     const isSuperAdmin = currentUser.role === UserRole.SUPER_ADMIN;
 
-    // Roles available for selection, limited for local admins
     const availableRoles = Object.values(UserRole).filter(r => {
         if (isSuperAdmin) return true;
-        // Local admin cannot create other admins or super admins
         return r !== UserRole.SUPER_ADMIN && r !== UserRole.ADMIN;
     });
 
     useEffect(() => {
         if (userToEdit) {
             setNama(userToEdit.nama);
+            setNip(userToEdit.nip);
+            setPangkatGolongan(userToEdit.pangkatGolongan);
             setJabatan(userToEdit.jabatan);
             setEmail(userToEdit.email);
             setRole(userToEdit.role);
             setUnitKerjaId(userToEdit.unitKerjaId);
+            setTanggalLahir(userToEdit.tanggalLahir ? new Date(userToEdit.tanggalLahir).toISOString().split('T')[0] : '');
         } else {
             setNama('');
+            setNip('');
+            setPangkatGolongan('');
             setJabatan('');
             setEmail('');
+            setTanggalLahir('');
             setRole(UserRole.STAF);
-            // Default to current admin's unit, or first unit if super admin
             setUnitKerjaId(isSuperAdmin ? (unitKerjaList[0]?.id || '') : currentUser.unitKerjaId);
         }
-        setPassword(''); // Always reset password field for security
+        setPassword('');
     }, [userToEdit, isOpen, isSuperAdmin, currentUser.unitKerjaId, unitKerjaList]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (nama.trim() && jabatan.trim() && email.trim() && role && unitKerjaId) {
-            const userData: any = { nama, jabatan, email, role, unitKerjaId };
-            if (userToEdit) {
-                if (password) {
-                    userData.password = password;
-                }
-                onSubmit({ ...userData, id: userToEdit.id });
-            } else {
+        const userData: any = { nama, nip, pangkatGolongan, jabatan, email, role, unitKerjaId, tanggalLahir };
+        if (userToEdit) {
+            if (password) {
                 userData.password = password;
-                onSubmit(userData);
             }
-            onClose();
+            onSubmit({ ...userData, id: userToEdit.id });
+        } else {
+            userData.password = password;
+            onSubmit(userData);
         }
+        onClose();
     };
 
     return (
@@ -76,50 +80,51 @@ const UserFormModal: React.FC<{
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="nama" className="block text-sm font-medium text-slate-700">Nama Lengkap</label>
-                        <input type="text" id="nama" value={nama} onChange={e => setNama(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
+                        <label className="block text-sm font-medium text-slate-700">Nama Lengkap</label>
+                        <input type="text" value={nama} onChange={e => setNama(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
                     </div>
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-slate-700">Email</label>
-                        <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700">NIP</label>
+                        <input type="text" value={nip} onChange={e => setNip(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
                     </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
-                        <label htmlFor="jabatan" className="block text-sm font-medium text-slate-700">Jabatan</label>
-                        <input type="text" id="jabatan" value={jabatan} onChange={e => setJabatan(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" />
+                        <label className="block text-sm font-medium text-slate-700">Jabatan</label>
+                        <input type="text" value={jabatan} onChange={e => setJabatan(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
                     </div>
                      <div>
-                        <label htmlFor="role" className="block text-sm font-medium text-slate-700">Peran (Role)</label>
-                        <select id="role" value={role} onChange={e => setRole(e.target.value as UserRole)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500">
+                        <label className="block text-sm font-medium text-slate-700">Pangkat/Golongan</label>
+                        <input type="text" value={pangkatGolongan} onChange={e => setPangkatGolongan(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700">Email</label>
+                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700">Tanggal Lahir</label>
+                        <input type="date" value={tanggalLahir} onChange={e => setTanggalLahir(e.target.value)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                    </div>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700">Unit Kerja</label>
+                        <select value={unitKerjaId} onChange={e => setUnitKerjaId(e.target.value)} required disabled={!isSuperAdmin} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md disabled:bg-slate-200">
+                            {isSuperAdmin ? ( unitKerjaList.map(u => <option key={u.id} value={u.id}>{u.nama}</option>) ) : ( <option value={currentUser.unitKerjaId}>{unitKerjaList.find(u => u.id === currentUser.unitKerjaId)?.nama}</option> )}
+                        </select>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700">Peran (Role)</label>
+                        <select value={role} onChange={e => setRole(e.target.value as UserRole)} required className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                            {availableRoles.map(r => <option key={r as string} value={r as string}>{r}</option>)}
                         </select>
                     </div>
                 </div>
-
                 <div>
-                    <label htmlFor="unitKerjaId" className="block text-sm font-medium text-slate-700">Unit Kerja</label>
-                    <select id="unitKerjaId" value={unitKerjaId} onChange={e => setUnitKerjaId(e.target.value)} required disabled={!isSuperAdmin} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500 disabled:bg-slate-200">
-                        {isSuperAdmin ? (
-                            unitKerjaList.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)
-                        ) : (
-                            <option value={currentUser.unitKerjaId}>{unitKerjaList.find(u => u.id === currentUser.unitKerjaId)?.nama}</option>
-                        )}
-                    </select>
-                </div>
-
-                <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-slate-700">Password</label>
-                    <input 
-                      type="password" 
-                      id="password" 
-                      value={password} 
-                      onChange={e => setPassword(e.target.value)} 
-                      required={!userToEdit} // Required only for new users
-                      className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-slate-500 focus:border-slate-500" 
-                      placeholder={userToEdit ? 'Kosongkan jika tidak ingin diubah' : ''}
-                    />
+                    <label className="block text-sm font-medium text-slate-700">Password</label>
+                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} required={!userToEdit} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder={userToEdit ? 'Kosongkan jika tidak ingin diubah' : ''} />
                 </div>
                 <div className="flex justify-end pt-4 space-x-2">
                     <button type="button" onClick={onClose} className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Batal</button>
